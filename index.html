@@ -678,10 +678,8 @@
   <footer>
     <strong>Escala UFRA</strong> — Controle de Frequência<br>
     💡 Dados salvos automaticamente no navegador &bull; Use Ctrl+G/E/S/O/L para atalhos<br>
-    🎉 <strong>Calendário Oficial UFRA</strong> — Baseado no Calendário do Governo Federal + calendário específico da UFRA<br>
+    🎉 <strong>Calendário Oficial UFRA</strong> — Feriados nacionais, estaduais (PA) e municipais (Belém)<br>
     🏛️ <strong>Universidade Federal Rural da Amazônia</strong> — Campus Belém<br>
-    📆 <strong>Ano-base do calendário:</strong> <span id="anoBaseFooter">2026</span> &bull;
-    Ao lançar novo calendário UFRA, edite <code>ANO_ATUALIZACAO</code> no código<br>
     <br>
     <strong>💻 Desenvolvido por Ewerton Uchôa</strong>
   </footer>
@@ -1576,7 +1574,6 @@
   // ===================== INICIALIZAÇÃO =====================
 
   window.onload = function() {
-    document.getElementById('anoBaseFooter').textContent = ANO_ATUALIZACAO;
     atualizarNavMesAno();
     gerarTabela();
 
