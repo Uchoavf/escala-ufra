@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Escala UFRA — Planilha de Escala de Trabalho</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 28px;
+      color: #2c3e50;
+      font-weight: 700;
+    }
+
+    .subtitulo {
+      text-align: center;
+      font-size: 16px;
+      color: #7f8c8d;
+      margin-bottom: 30px;
+    }
+
+    .contador-horas {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin: 20px 0;
+      padding: 15px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 10px;
+      border: 2px solid #dee2e6;
+      flex-wrap: wrap;
+    }
+
+    .contador-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 15px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      min-width: 120px;
+      transition: all 0.3s ease;
+    }
+
+    .contador-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .contador-item.total {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-weight: 700;
+    }
+
+    .contador-label {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .contador-valor {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2c3e50;
+    }
+
+    .contador-item.total .contador-valor {
+      color: white;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+      padding: 25px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 15px;
+      border: 2px solid #dee2e6;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .controls label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+
+    .controls select, .controls input {
+      padding: 12px 15px;
+      border-radius: 10px;
+      border: 2px solid #dee2e6;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .controls select:focus, .controls input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .controls select:hover, .controls input:hover {
+      border-color: #adb5bd;
+      transform: translateY(-1px);
+    }
+
+    .actions-section {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:hover { 
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0px);
+      box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 10px 20px;
+      font-size: 13px;
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+
+    .btn-info {
+      background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+      color: #212529;
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    }
+
+    .wrapper {
+      overflow-x: auto;
+      border-radius: 10px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      min-width: 1000px;
+    }
+
+    thead tr {
+      background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+      color: #fff;
+      font-size: 14px;
+    }
+
+    thead th {
+      padding: 15px 10px;
+      text-align: center;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #e9ecef;
+      transition: all 0.3s ease;
+    }
+
+    tbody tr:hover { 
+      background: #f8f9fa;
+      transform: scale(1.01);
+    }
+
+    tbody td {
+      padding: 12px 8px;
+      text-align: center;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+
+    .col-data    { width: 100px; font-weight: 600; color: #495057; }
+    .col-diasem  { width: 120px; color: #6c757d; }
+    .col-hora    { width: 100px; }
+    .col-calc    { width: 100px; font-weight: 600; }
+    .col-diff    { width: 100px; font-weight: 700; }
+    .col-modal   { width: 130px; }
+    .col-obs     { min-width: 150px; }
+    .col-invalido { width: 30px; }
+
+    input[type="time"] {
+      width: 90px;
+      padding: 6px 8px;
+      border: 2px solid #dee2e6;
+      border-radius: 6px;
+      font-size: 13px;
+      text-align: center;
+      background: #fff;
+      transition: all 0.3s ease;
+    }
+
+    input[type="time"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    input[type="time"].invalido {
+      border-color: #dc3545;
+      background: #fff5f5;
+      box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+    }
+
+    select.modal-sel {
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 2px solid #dee2e6;
+      font-size: 12px;
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    select.modal-sel:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    input[type="text"].obs-input {
+      width: 100%;
+      padding: 6px 8px;
+      border: 2px solid #dee2e6;
+      border-radius: 6px;
+      font-size: 12px;
+      background: #fff;
+      transition: all 0.3s ease;
+    }
+
+    input[type="text"].obs-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    tr.presencial { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important; }
+    tr.remoto     { background: linear-gradient(135deg, #cce5ff 0%, #b3d9ff 100%) !important; }
+    tr.hibrido    { background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%) !important; }
+    tr.fds        { background: #f8f9fa !important; opacity: 0.7; }
+    tr.feriado    { background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%) !important; opacity: 0.8; }
+
+    .extra   { color: #28a745; font-weight: 700; }
+    .atraso  { color: #dc3545; font-weight: 700; }
+    .neutro  { color: #6c757d; }
+
+    .resumo {
+      margin-top: 40px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      text-align: center;
+      border: 2px solid #e9ecef;
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .card .label {
+      font-size: 12px;
+      color: #6c757d;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .card .valor {
+      font-size: 24px;
+      font-weight: 700;
+      color: #2c3e50;
+    }
+
+    .card .valor small {
+      font-size: 14px;
+      font-weight: 500;
+      color: #6c757d;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .card.verde .valor { color: #28a745; }
+    .card.vermelho .valor { color: #dc3545; }
+    .card.azul .valor { color: #007bff; }
+    .card.roxo .valor { color: #6f42c1; }
+
+    .feriados-mes {
+      margin: 20px 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+      border-radius: 10px;
+      border: 2px solid #ffc107;
+      box-shadow: 0 3px 10px rgba(255, 193, 7, 0.2);
+    }
+
+    .feriados-mes h3 {
+      margin: 0 0 15px 0;
+      color: #e65100;
+      font-size: 18px;
+      text-align: center;
+    }
+
+    .feriados-lista {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 10px;
+    }
+
+    .feriado-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 6px;
+      border-left: 4px solid #ff9800;
+    }
+
+    .feriado-data {
+      font-weight: 700;
+      color: #e65100;
+      margin-right: 12px;
+      min-width: 50px;
+    }
+
+    .feriado-desc {
+      color: #bf360c;
+      font-size: 14px;
+    }
+
+    .sem-feriados {
+      text-align: center;
+      color: #4caf50;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      padding: 16px 24px;
+      border-radius: 10px;
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+      z-index: 9999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.4s ease;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success { background: linear-gradient(135deg, #28a745, #20c997); }
+    .toast.error   { background: linear-gradient(135deg, #dc3545, #fd7e14); }
+    .toast.info    { background: linear-gradient(135deg, #17a2b8, #138496); }
+    .toast.warning { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; }
+
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-presente { background: #28a745; }
+    .status-remoto { background: #007bff; }
+    .status-hibrido { background: #ffc107; }
+    .status-ausente { background: #dc3545; }
+
+    .invalido-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #dc3545;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: help;
+    }
+
+    .invalido-icon.ok {
+      background: #28a745;
+    }
+
+    .navegacao-meses {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin: 10px 0 20px 0;
+    }
+
+    .nav-btn {
+      background: none;
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: #495057;
+    }
+
+    .nav-btn:hover {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.1);
+      transform: scale(1.05);
+    }
+
+    .nav-mes-ano {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2c3e50;
+      min-width: 200px;
+      text-align: center;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 30px;
+      font-size: 14px;
+      color: #6c757d;
+      padding: 20px;
+      border-top: 2px solid #e9ecef;
+    }
+
+    @media (max-width: 768px) {
+      .container { padding: 15px; }
+      h1 { font-size: 24px; }
+      .subtitulo { font-size: 14px; }
+      .controls { 
+        grid-template-columns: 1fr; 
+        padding: 20px;
+        gap: 15px;
+      }
+      .btn-group { 
+        flex-direction: column; 
+        gap: 8px;
+      }
+      .btn { 
+        padding: 10px 16px; 
+        font-size: 12px;
+      }
+      .btn-primary { 
+        padding: 12px 20px; 
+        font-size: 13px;
+      }
+      .resumo { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+      .contador-horas { 
+        flex-direction: column; 
+        align-items: center; 
+        gap: 10px;
+      }
+      .contador-item { 
+        min-width: 200px; 
+        width: 100%;
+        max-width: 300px;
+      }
+      .feriados-lista { grid-template-columns: 1fr; }
+      .wrapper { 
+        margin: 0 -15px; 
+        border-radius: 0;
+      }
+      table { min-width: 800px; }
+      .navegacao-meses { flex-direction: column; gap: 10px; }
+      .nav-mes-ano { min-width: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📅 Escala UFRA</h1>
+  <p class="subtitulo">Universidade Federal Rural da Amazônia — Campus Belém | Controle de Frequência Mensal</p>
+
+  <div class="contador-horas" id="contadorHoras">
+    <div class="contador-item">
+      <span class="contador-label">🏢 Presencial:</span>
+      <span class="contador-valor" id="contadorPresencial">0h 00min</span>
+    </div>
+    <div class="contador-item">
+      <span class="contador-label">🏠 Remoto:</span>
+      <span class="contador-valor" id="contadorRemoto">0h 00min</span>
+    </div>
+    <div class="contador-item">
+      <span class="contador-label">🔄 Híbrido:</span>
+      <span class="contador-valor" id="contadorHibrido">0h 00min</span>
+    </div>
+    <div class="contador-item total">
+      <span class="contador-label">📊 Total:</span>
+      <span class="contador-valor" id="contadorTotal">0h 00min</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label for="selMes">📅 Mês:</label>
+      <select id="selMes"></select>
+    </div>
+    <div class="control-group">
+      <label for="selAno">📅 Ano:</label>
+      <select id="selAno"></select>
+    </div>
+    <div class="control-group">
+      <label for="selCarga">⏰ Carga Horária Diária:</label>
+      <select id="selCarga">
+        <option value="4">4h</option>
+        <option value="6">6h</option>
+        <option value="8" selected>8h</option>
+        <option value="9">9h</option>
+        <option value="10">10h</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="selAlmoco">🍽️ Intervalo Almoço:</label>
+      <select id="selAlmoco">
+        <option value="0">Sem intervalo</option>
+        <option value="0.5">30 min</option>
+        <option value="1" selected>1h</option>
+        <option value="1.5">1h30</option>
+        <option value="2">2h</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="horaEntradaPadrao">🕐 Entrada Padrão:</label>
+      <input type="time" id="horaEntradaPadrao" value="08:00" />
+    </div>
+    <div class="control-group">
+      <label for="horaSaidaPadrao">🕕 Saída Padrão:</label>
+      <input type="time" id="horaSaidaPadrao" value="17:00" />
+    </div>
+  </div>
+
+  <div class="actions-section">
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="gerarTabela()" title="Gerar/Atualizar tabela do mês (Ctrl+G)">
+        🔄 Gerar
+      </button>
+      <button class="btn btn-success" onclick="exportarCSV()" title="Exportar CSV (Ctrl+E)">
+        📊 Exportar
+      </button>
+      <button class="btn btn-info" onclick="salvarPlanilha()" title="Salvar JSON (Ctrl+S)">
+        💾 Salvar
+      </button>
+      <button class="btn btn-warning" onclick="abrirPlanilha()" title="Carregar JSON (Ctrl+O)">
+        📂 Abrir
+      </button>
+      <button class="btn btn-danger" onclick="limparDados()" title="Limpar tudo (Ctrl+L)">
+        🗑️ Limpar
+      </button>
+    </div>
+  </div>
+
+  <div class="navegacao-meses">
+    <button class="nav-btn" onclick="navegarMes(-1)" title="Mês anterior">◀</button>
+    <span class="nav-mes-ano" id="navMesAno"></span>
+    <button class="nav-btn" onclick="navegarMes(1)" title="Próximo mês">▶</button>
+  </div>
+
+  <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="carregarArquivo(event)" />
+
+  <div class="wrapper">
+    <table id="tabela">
+      <thead>
+        <tr>
+          <th class="col-data">📅 Data</th>
+          <th class="col-diasem">📆 Dia da Semana</th>
+          <th class="col-hora">🕐 Entrada</th>
+          <th class="col-hora">🕕 Saída</th>
+          <th class="col-calc">⏱️ H. Trabalhadas</th>
+          <th class="col-calc">📋 Carga Esperada</th>
+          <th class="col-diff">📊 Diferença</th>
+          <th class="col-modal">💼 Modalidade</th>
+          <th class="col-obs">📝 Observações</th>
+          <th class="col-invalido">⚠️</th>
+        </tr>
+      </thead>
+      <tbody id="corpo"></tbody>
+    </table>
+  </div>
+
+  <div class="resumo" id="resumo"></div>
+
+  <footer>
+    <strong>Escala UFRA</strong> — Controle de Frequência<br>
+    💡 Dados salvos automaticamente no navegador &bull; Use Ctrl+G/E/S/O/L para atalhos<br>
+    🎉 <strong>Calendário Oficial UFRA</strong> — Baseado no Calendário do Governo Federal + calendário específico da UFRA<br>
+    🏛️ <strong>Universidade Federal Rural da Amazônia</strong> — Campus Belém<br>
+    📆 <strong>Ano-base do calendário:</strong> <span id="anoBaseFooter">2026</span> &bull;
+    Ao lançar novo calendário UFRA, edite <code>ANO_ATUALIZACAO</code> no código<br>
+    <br>
+    <strong>💻 Desenvolvido por Ewerton Uchôa</strong>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // =========================================================================
+  //  ESCALA UFRA — Configuração do Calendário Oficial
+  // =========================================================================
+  //
+  //  📌 IMPORTANTE: Atualização Anual
+  //  ================================
+  //  A UFRA lança um novo calendário administrativo todo ano, baseado no
+  //  Calendário Oficial do Governo Federal (MGI - Ministério da Gestão).
+  //
+  //  Para atualizar para o ano seguinte:
+  //    1. Consulte o calendário oficial da UFRA (site da universidade)
+  //    2. Consulte a portaria do MGI com os feriados e pontos facultativos
+  //    3. Atualize o ANO_ATUALIZACAO abaixo
+  //    4. Se houver datas específicas da UFRA diferentes do Gov Federal,
+  //       adicione em CALENDARIO_UFRA_EXTRAS
+  //    5. Recessos administrativos (final de ano, etc.) podem variar
+  //
+  //  Base: Calendário Oficial do Governo Federal + Calendário UFRA
+  // =========================================================================
+
+  const ANO_ATUALIZACAO = 2026; // ⚠️ Atualizar quando lançar novo calendário UFRA
+
+  const meses = [
+    "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+    "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
+  ];
+  const dias = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
+
+  // ---------------------------------------------------------------
+  //  FERIADOS NACIONAIS (Governo Federal) — fixos todos os anos
+  // ---------------------------------------------------------------
+  //  Fonte: Lei nº 662/1949, Lei nº 10.607/2002, Lei nº 14.759/2023 (Consciência Negra)
+  //  Esses feriados NÃO mudam de ano para ano.
+  // ---------------------------------------------------------------
+  const FERIADOS_NACIONAIS = [
+    { dia: 1,  mes: 0,  desc: "Confraternização Universal" },
+    { dia: 21, mes: 3,  desc: "Tiradentes" },
+    { dia: 1,  mes: 4,  desc: "Dia do Trabalhador" },
+    { dia: 7,  mes: 8,  desc: "Independência do Brasil" },
+    { dia: 12, mes: 9,  desc: "Nossa Senhora Aparecida" },
+    { dia: 2,  mes: 10, desc: "Finados" },
+    { dia: 15, mes: 10, desc: "Proclamação da República" },
+    { dia: 20, mes: 10, desc: "Consciência Negra" },
+    { dia: 25, mes: 11, desc: "Natal" }
+  ];
+
+  // ---------------------------------------------------------------
+  //  FERIADOS ESTADUAIS (Pará)
+  // ---------------------------------------------------------------
+  //  Fonte: Lei Estadual do Pará
+  // ---------------------------------------------------------------
+  const FERIADOS_ESTADUAIS = [
+    { dia: 15, mes: 7, desc: "Adesão do Pará" }
+  ];
+
+  // ---------------------------------------------------------------
+  //  FERIADOS MUNICIPAIS (Belém)
+  // ---------------------------------------------------------------
+  const FERIADOS_MUNICIPAIS = [
+    { dia: 12, mes: 0, desc: "Aniversário de Belém" },
+    { dia: 8,  mes: 11, desc: "Nossa Senhora da Conceição (Padroeira de Belém)" },
+    { dia: 26, mes: 9, desc: "Recírio — Belém" }
+  ];
+
+  // ---------------------------------------------------------------
+  //  PONTOS FACULTATIVOS FIXOS (Governo Federal)
+  // ---------------------------------------------------------------
+  const PONTOS_FACULTATIVOS = [
+    { dia: 24, mes: 11, desc: "Véspera de Natal" },
+    { dia: 31, mes: 11, desc: "Véspera de Ano Novo" }
+  ];
+
+  // ---------------------------------------------------------------
+  //  CALENDÁRIO UFRA — Datas específicas da UFRA (por ano)
+  // ---------------------------------------------------------------
+  //  📌 A UFRA pode alterar, antecipar ou postergar feriados e definir
+  //     recessos administrativos próprios, diferentes do Governo Federal.
+  //
+  //  Exemplo: recesso de final de ano, aniversário da UFRA, pontos
+  //  facultativos específicos da universidade, etc.
+  //
+  //  ⚠️ Ao criar o calendário do próximo ano, ADICIONE um novo bloco
+  //     abaixo com as datas específicas da UFRA para aquele ano.
+  // ---------------------------------------------------------------
+  const CALENDARIO_UFRA_EXTRAS = {
+    // --- ANO BASE: 2026 ---
+    // Fonte: Calendário Administrativo UFRA 2026 (Portaria/Resolução específica)
+    2026: [
+      // Exemplo de possíveis datas específicas da UFRA:
+      // { dia: 28, mes: 9, desc: "Aniversário UFRA (Ponto Facultativo)", facultativo: true },
+      // { inicio: 2, fim: 31, mes: 11, desc: "Recesso Administrativo UFRA" }
+    ]
+    // --- PRÓXIMO ANO: 2027 ---
+    // 2027: [
+    //   { dia: X, mes: Y, desc: "...", facultativo: true }
+    // ]
+  };
+
+  // ---------------------------------------------------------------
+  //  FERIADOS MÓVEIS — calculados dinamicamente via Páscoa
+  // ---------------------------------------------------------------
+  //  Esses NÃO precisam ser atualizados — o cálculo é automático
+  //  para qualquer ano usando o algoritmo de Gauss.
+  // ---------------------------------------------------------------
+
+  // ===================== CÁLCULO DE FERIADOS MÓVEIS =====================
+
+  function calcularPascoa(ano) {
+    const a = ano % 19;
+    const b = Math.floor(ano / 100);
+    const c = ano % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const n = Math.floor((h + l - 7 * m + 114) / 31);
+    const p = (h + l - 7 * m + 114) % 31;
+    return new Date(ano, n - 1, p + 1);
+  }
+
+  function obterFeriadosMovel(ano) {
+    const pascoa = calcularPascoa(ano);
+    const feriados = [];
+
+    const eventos = [
+      { diasAntes: 47, desc: "Segunda-feira de Carnaval" },
+      { diasAntes: 46, desc: "Terça-feira de Carnaval" },
+      { diasAntes: 45, desc: "Quarta-feira de Cinzas (Ponto Facultativo)", facultativo: true },
+      { diasAntes: 2,  desc: "Sexta-feira Santa" },
+      { diasDepois: 60, desc: "Corpus Christi" },
+      { diasDepois: 61, desc: "Ponto Facultativo pós Corpus Christi", facultativo: true }
+    ];
+
+    eventos.forEach(evt => {
+      const data = new Date(pascoa);
+      if (evt.diasAntes) data.setDate(data.getDate() - evt.diasAntes);
+      if (evt.diasDepois) data.setDate(data.getDate() + evt.diasDepois);
+      feriados.push({
+        dia: data.getDate(),
+        mes: data.getMonth(),
+        desc: evt.desc,
+        facultativo: evt.facultativo || false
+      });
+    });
+
+    return feriados;
+  }
+
+  function obterFeriadosAno(ano) {
+    const feriados = [];
+
+    // 1. Feriados nacionais fixos
+    FERIADOS_NACIONAIS.forEach(f => feriados.push({ ...f, tipo: 'Nacional' }));
+
+    // 2. Feriados estaduais (PA)
+    FERIADOS_ESTADUAIS.forEach(f => feriados.push({ ...f, tipo: 'Estadual (PA)' }));
+
+    // 3. Feriados municipais (Belém)
+    FERIADOS_MUNICIPAIS.forEach(f => feriados.push({ ...f, tipo: 'Municipal (Belém)' }));
+
+    // 4. Pontos facultativos fixos
+    PONTOS_FACULTATIVOS.forEach(f => feriados.push({ ...f, tipo: 'Facultativo', facultativo: true }));
+
+    // 5. Datas específicas da UFRA para este ano (se houver)
+    if (CALENDARIO_UFRA_EXTRAS[ano]) {
+      CALENDARIO_UFRA_EXTRAS[ano].forEach(f => {
+        feriados.push({ ...f, tipo: 'UFRA', facultativo: f.facultativo || false });
+      });
+    }
+
+    // 6. Feriados móveis (calculados dinamicamente)
+    const moveis = obterFeriadosMovel(ano);
+    moveis.forEach(f => {
+      const jaExiste = feriados.some(
+        e => e.dia === f.dia && e.mes === f.mes
+      );
+      if (!jaExiste) {
+        feriados.push({ ...f, tipo: f.facultativo ? 'Facultativo' : 'Nacional' });
+      }
+    });
+
+    return feriados;
+  }
+
+  function isFeriado(dia, mes, ano) {
+    const feriados = obterFeriadosAno(ano);
+    return feriados.some(f => f.dia === dia && f.mes === mes);
+  }
+
+  function getDescricaoFeriado(dia, mes, ano) {
+    const feriados = obterFeriadosAno(ano);
+    const feriado = feriados.find(f => f.dia === dia && f.mes === mes);
+    if (!feriado) return 'Feriado';
+    let desc = feriado.desc;
+    if (feriado.tipo) desc += ' (' + feriado.tipo + ')';
+    if (feriado.facultativo) desc += ' ⏰';
+    return desc;
+  }
+
+  function obterFeriadosPorMes(mes, ano) {
+    return obterFeriadosAno(ano).filter(f => f.mes === mes);
+  }
+
+  function isDiaAdministrativo(dia, mes, ano) {
+    const data = new Date(ano, mes, dia);
+    const diaSemana = data.getDay();
+    const fds = (diaSemana === 0 || diaSemana === 6);
+    const feriado = isFeriado(dia, mes, ano);
+    return !fds && !feriado;
+  }
+
+  // ===================== INICIALIZAÇÃO =====================
+
+  const selMes = document.getElementById('selMes');
+  const selAno = document.getElementById('selAno');
+  const hoje = new Date();
+
+  meses.forEach((m, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = m;
+    if (i === hoje.getMonth()) opt.selected = true;
+    selMes.appendChild(opt);
+  });
+
+  for (let a = hoje.getFullYear() - 5; a <= hoje.getFullYear() + 5; a++) {
+    const opt = document.createElement('option');
+    opt.value = a;
+    opt.textContent = a;
+    if (a === hoje.getFullYear()) opt.selected = true;
+    selAno.appendChild(opt);
+  }
+
+  function atualizarNavMesAno() {
+    const el = document.getElementById('navMesAno');
+    el.textContent = meses[parseInt(selMes.value)] + ' ' + selAno.value;
+  }
+
+  function navegarMes(dir) {
+    let mes = parseInt(selMes.value) + dir;
+    let ano = parseInt(selAno.value);
+    if (mes < 0) { mes = 11; ano--; }
+    if (mes > 11) { mes = 0; ano++; }
+
+    if (ano < parseInt(selAno.options[0].value) || ano > parseInt(selAno.options[selAno.options.length - 1].value)) {
+      mostrarToast('Ano fora do intervalo disponível', 'warning');
+      return;
+    }
+
+    selMes.value = mes;
+    selAno.value = ano;
+    atualizarNavMesAno();
+    gerarTabela();
+  }
+
+  function diasNoMes(mes, ano) {
+    return new Date(ano, mes + 1, 0).getDate();
+  }
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function horasParaStr(h) {
+    if (isNaN(h) || h === null) return '--:--';
+    const abs = Math.abs(h);
+    const hh = Math.floor(abs);
+    const mm = Math.round((abs - hh) * 60);
+    return (h < 0 ? '-' : '') + pad(hh) + ':' + pad(mm);
+  }
+
+  function horasParaStrDetalhado(h) {
+    if (isNaN(h) || h === null) return '0h 00min';
+    const abs = Math.abs(h);
+    const hh = Math.floor(abs);
+    const mm = Math.round((abs - hh) * 60);
+    return (h < 0 ? '-' : '') + hh + 'h ' + pad(mm) + 'min';
+  }
+
+  function timeToDecimal(str) {
+    if (!str) return null;
+    const [h, m] = str.split(':').map(Number);
+    return h + m / 60;
+  }
+
+  // ===================== VALIDAÇÃO =====================
+
+  function validarHorarios(entrada, saida) {
+    if (!entrada || !saida) return { valido: true, msg: '' };
+    const e = timeToDecimal(entrada);
+    const s = timeToDecimal(saida);
+    if (e === null || s === null) return { valido: true, msg: '' };
+    if (s <= e) return { valido: false, msg: 'Saída anterior ou igual à entrada' };
+    return { valido: true, msg: '' };
+  }
+
+  // ===================== CÁLCULOS =====================
+
+  function calcularLinha(entrada, saida, almoco, carga) {
+    const e = timeToDecimal(entrada);
+    const s = timeToDecimal(saida);
+    if (e === null || s === null) return { trab: null, diff: null };
+    if (s <= e) return { trab: 0, diff: -carga };
+    let trab = s - e - almoco;
+    if (trab < 0) trab = 0;
+    const diff = trab - carga;
+    return { trab, diff };
+  }
+
+  // ===================== PERSISTÊNCIA =====================
+
+  function salvarDados() {
+    const dados = {
+      mes: selMes.value,
+      ano: selAno.value,
+      carga: document.getElementById('selCarga').value,
+      almoco: document.getElementById('selAlmoco').value,
+      entradaPadrao: document.getElementById('horaEntradaPadrao').value,
+      saidaPadrao: document.getElementById('horaSaidaPadrao').value,
+      linhas: []
+    };
+
+    document.querySelectorAll('#corpo tr').forEach(tr => {
+      const dia = tr.dataset.dia;
+      const entrada = tr.querySelector('.entrada')?.value || '';
+      const saida = tr.querySelector('.saida')?.value || '';
+      const modalidade = tr.querySelector('.modal-sel')?.value || '';
+      const obs = tr.querySelector('.obs-input')?.value || '';
+      dados.linhas.push({ dia, entrada, saida, modalidade, obs });
+    });
+
+    localStorage.setItem('escalaUFRA', JSON.stringify(dados));
+  }
+
+  function carregarDados() {
+    const dados = localStorage.getItem('escalaUFRA');
+    if (!dados) return null;
+    return JSON.parse(dados);
+  }
+
+  // ===================== TOAST =====================
+
+  function mostrarToast(msg, tipo) {
+    tipo = tipo || 'info';
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'toast ' + tipo + ' show';
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+      toast.classList.remove('show');
+    }, 3500);
+  }
+
+  // ===================== CONTADOR TEMPO REAL =====================
+
+  function atualizarContadorTempoReal() {
+    const almoco = parseFloat(document.getElementById('selAlmoco').value);
+    const carga = parseFloat(document.getElementById('selCarga').value);
+    const linhas = document.querySelectorAll('#corpo tr');
+
+    let horasPresencial = 0, horasRemoto = 0, horasHibrido = 0;
+
+    linhas.forEach(tr => {
+      const dia = parseInt(tr.dataset.dia);
+      if (!isDiaAdministrativo(dia, parseInt(selMes.value), parseInt(selAno.value))) return;
+
+      const entrada = tr.querySelector('.entrada')?.value;
+      const saida = tr.querySelector('.saida')?.value;
+      const modal = tr.querySelector('.modal-sel')?.value;
+
+      if (entrada && saida && modal) {
+        const validacao = validarHorarios(entrada, saida);
+        if (!validacao.valido) return;
+
+        const { trab } = calcularLinha(entrada, saida, almoco, carga);
+        if (trab !== null && trab > 0) {
+          if (modal === 'Presencial') horasPresencial += trab;
+          else if (modal === 'Remoto') horasRemoto += trab;
+          else if (modal === 'Hibrido') horasHibrido += trab;
+        }
+      }
+    });
+
+    const totalHoras = horasPresencial + horasRemoto + horasHibrido;
+
+    document.getElementById('contadorPresencial').textContent = horasParaStrDetalhado(horasPresencial);
+    document.getElementById('contadorRemoto').textContent = horasParaStrDetalhado(horasRemoto);
+    document.getElementById('contadorHibrido').textContent = horasParaStrDetalhado(horasHibrido);
+    document.getElementById('contadorTotal').textContent = horasParaStrDetalhado(totalHoras);
+  }
+
+  // ===================== GERAR TABELA =====================
+
+  function gerarTabela() {
+    const mes = parseInt(selMes.value);
+    const ano = parseInt(selAno.value);
+    const carga = parseFloat(document.getElementById('selCarga').value);
+    const almoco = parseFloat(document.getElementById('selAlmoco').value);
+    const entradaPadrao = document.getElementById('horaEntradaPadrao').value;
+    const saidaPadrao = document.getElementById('horaSaidaPadrao').value;
+    const total = diasNoMes(mes, ano);
+    const corpo = document.getElementById('corpo');
+    corpo.innerHTML = '';
+
+    const dadosSalvos = carregarDados();
+
+    atualizarNavMesAno();
+
+    for (let d = 1; d <= total; d++) {
+      const data = new Date(ano, mes, d);
+      const diaSem = data.getDay();
+      const fds = (diaSem === 0 || diaSem === 6);
+      const feriado = isFeriado(d, mes, ano);
+      const diaAdministrativo = isDiaAdministrativo(d, mes, ano);
+
+      const dataStr = `${pad(d)}/${pad(mes + 1)}/${ano}`;
+      let diaNome = dias[diaSem];
+
+      if (feriado) {
+        diaNome += ' 🎉';
+      }
+
+      let dadosDia = { entrada: '', saida: '', modalidade: '', obs: '' };
+      if (dadosSalvos && dadosSalvos.mes == mes && dadosSalvos.ano == ano) {
+        const linhaSalva = dadosSalvos.linhas.find(l => l.dia == d);
+        if (linhaSalva) dadosDia = linhaSalva;
+      }
+
+      const tr = document.createElement('tr');
+      tr.dataset.dia = d;
+      if (fds) tr.classList.add('fds');
+      if (feriado) {
+        tr.classList.add('feriado');
+        tr.title = getDescricaoFeriado(d, mes, ano);
+      }
+
+      const entradaValue = dadosDia.entrada || (diaAdministrativo ? entradaPadrao : '');
+      const saidaValue = dadosDia.saida || (diaAdministrativo ? saidaPadrao : '');
+
+      const validacao = validarHorarios(entradaValue, saidaValue);
+      const invalidoCls = (!validacao.valido && entradaValue && saidaValue) ? 'invalido' : '';
+      const invalidoIcon = (!validacao.valido && entradaValue && saidaValue)
+        ? '<span class="invalido-icon" title="' + validacao.msg + '">!</span>'
+        : (entradaValue && saidaValue ? '<span class="invalido-icon ok" title="Horários válidos">✓</span>' : '');
+
+      tr.innerHTML = `
+        <td class="col-data">${dataStr}</td>
+        <td class="col-diasem">${diaNome}</td>
+        <td class="col-hora">
+          <input type="time" class="entrada ${invalidoCls}" value="${entradaValue}"
+            oninput="recalcularLinha(this, ${almoco}, ${carga})" ${!diaAdministrativo ? 'disabled' : ''}>
+        </td>
+        <td class="col-hora">
+          <input type="time" class="saida ${invalidoCls}" value="${saidaValue}"
+            oninput="recalcularLinha(this, ${almoco}, ${carga})" ${!diaAdministrativo ? 'disabled' : ''}>
+        </td>
+        <td class="col-calc trab-cell">--</td>
+        <td class="col-calc">${diaAdministrativo ? horasParaStr(carga) : '--:--'}</td>
+        <td class="col-diff diff-cell neutro">--</td>
+        <td class="col-modal">
+          <select class="modal-sel" onchange="atualizarModalidade(this)" ${!diaAdministrativo ? 'disabled' : ''}>
+            <option value="">--</option>
+            <option value="Presencial" ${dadosDia.modalidade === 'Presencial' ? 'selected' : ''}>🏢 Presencial</option>
+            <option value="Remoto" ${dadosDia.modalidade === 'Remoto' ? 'selected' : ''}>🏠 Remoto</option>
+            <option value="Hibrido" ${dadosDia.modalidade === 'Hibrido' ? 'selected' : ''}>🔄 Híbrido</option>
+          </select>
+        </td>
+        <td class="col-obs">
+          <input type="text" class="obs-input" placeholder="Observação..."
+            value="${dadosDia.obs}" oninput="salvarDados()">
+        </td>
+        <td class="col-invalido">${invalidoIcon}</td>
+      `;
+
+      corpo.appendChild(tr);
+
+      if (diaAdministrativo) {
+        const entradaEl = tr.querySelector('.entrada');
+        recalcularLinha(entradaEl, almoco, carga);
+        atualizarModalidade(tr.querySelector('.modal-sel'));
+      }
+    }
+
+    atualizarContadorTempoReal();
+    atualizarResumo(carga);
+    mostrarFeriadosDoMes(mes, ano);
+  }
+
+  // ===================== FERIADOS DO MÊS =====================
+
+  function mostrarFeriadosDoMes(mes, ano) {
+    const feriadosDoMes = obterFeriadosPorMes(mes, ano);
+
+    let feriadosDiv = document.getElementById('feriadosDoMes');
+    if (!feriadosDiv) {
+      feriadosDiv = document.createElement('div');
+      feriadosDiv.id = 'feriadosDoMes';
+      feriadosDiv.className = 'feriados-mes';
+      const wrapper = document.querySelector('.wrapper');
+      wrapper.parentNode.insertBefore(feriadosDiv, wrapper);
+    }
+
+    if (feriadosDoMes.length > 0) {
+      feriadosDiv.innerHTML = `
+        <h3>🎉 Feriados de ${meses[mes]} ${ano}</h3>
+        <div class="feriados-lista">
+          ${feriadosDoMes.map(f => {
+            const dataStr = `${pad(f.dia)}/${pad(mes + 1)}`;
+            let desc = f.desc;
+            if (f.tipo) desc += ' (' + f.tipo + ')';
+            if (f.facultativo) desc += ' ⏰';
+            return `<div class="feriado-item"><span class="feriado-data">${dataStr}</span><span class="feriado-desc">${desc}</span></div>`;
+          }).join('')}
+        </div>
+      `;
+      feriadosDiv.style.display = 'block';
+    } else {
+      feriadosDiv.innerHTML = `
+        <h3>📅 ${meses[mes]} ${ano}</h3>
+        <p class="sem-feriados">✅ Nenhum feriado neste mês</p>
+      `;
+      feriadosDiv.style.display = 'block';
+    }
+  }
+
+  // ===================== RECALCULAR LINHA =====================
+
+  function recalcularLinha(el, almoco, carga) {
+    const tr = el.closest('tr');
+    const entrada = tr.querySelector('.entrada');
+    const saida = tr.querySelector('.saida');
+    const trabCell = tr.querySelector('.trab-cell');
+    const diffCell = tr.querySelector('.diff-cell');
+    const invalidoCell = tr.querySelector('.col-invalido');
+
+    const validacao = validarHorarios(entrada.value, saida.value);
+    entrada.classList.toggle('invalido', !validacao.valido && !!entrada.value && !!saida.value);
+    saida.classList.toggle('invalido', !validacao.valido && !!entrada.value && !!saida.value);
+
+    if (!validacao.valido && entrada.value && saida.value) {
+      invalidoCell.innerHTML = '<span class="invalido-icon" title="' + validacao.msg + '">!</span>';
+    } else if (entrada.value && saida.value) {
+      invalidoCell.innerHTML = '<span class="invalido-icon ok" title="Horários válidos">✓</span>';
+    } else {
+      invalidoCell.innerHTML = '';
+    }
+
+    const { trab, diff } = calcularLinha(entrada.value, saida.value, almoco, carga);
+
+    trabCell.textContent = trab !== null ? horasParaStr(trab) : '--:--';
+
+    if (diff !== null) {
+      diffCell.textContent = horasParaStr(diff);
+      diffCell.className = 'col-diff diff-cell ' + (diff > 0.01 ? 'extra' : diff < -0.01 ? 'atraso' : 'neutro');
+    } else {
+      diffCell.textContent = '--:--';
+      diffCell.className = 'col-diff diff-cell neutro';
+    }
+
+    salvarDados();
+    atualizarContadorTempoReal();
+    atualizarResumo(carga);
+  }
+
+  // ===================== MODALIDADE =====================
+
+  function atualizarModalidade(sel) {
+    const tr = sel.closest('tr');
+    tr.classList.remove('presencial', 'remoto', 'hibrido');
+    if (sel.value === 'Presencial') tr.classList.add('presencial');
+    else if (sel.value === 'Remoto') tr.classList.add('remoto');
+    else if (sel.value === 'Hibrido') tr.classList.add('hibrido');
+
+    salvarDados();
+    atualizarContadorTempoReal();
+    atualizarResumo();
+  }
+
+  // ===================== RESUMO =====================
+
+  function atualizarResumo(cargaParam) {
+    const almoco = parseFloat(document.getElementById('selAlmoco').value);
+    const carga = cargaParam || parseFloat(document.getElementById('selCarga').value);
+    const linhas = document.querySelectorAll('#corpo tr');
+
+    let totalTrab = 0, totalExtra = 0, totalAtraso = 0;
+    let diasPres = 0, diasRem = 0, diasHib = 0, diasTrab = 0;
+    let horasEsperadas = 0;
+    let diasAdministrativos = 0;
+    let diasComInvalido = 0;
+
+    linhas.forEach(tr => {
+      const dia = parseInt(tr.dataset.dia);
+      if (!isDiaAdministrativo(dia, parseInt(selMes.value), parseInt(selAno.value))) return;
+
+      diasAdministrativos++;
+
+      const entrada = tr.querySelector('.entrada')?.value;
+      const saida = tr.querySelector('.saida')?.value;
+      const modal = tr.querySelector('.modal-sel')?.value;
+
+      const validacao = validarHorarios(entrada, saida);
+      if (!validacao.valido && entrada && saida) {
+        diasComInvalido++;
+        return;
+      }
+
+      const { trab, diff } = calcularLinha(entrada, saida, almoco, carga);
+
+      if (entrada && saida) {
+        horasEsperadas += carga;
+        if (trab !== null && trab > 0) {
+          totalTrab += trab;
+          diasTrab++;
+          if (diff > 0.01) totalExtra += diff;
+          else if (diff < -0.01) totalAtraso += Math.abs(diff);
+        }
+
+        if (modal === 'Presencial') diasPres++;
+        else if (modal === 'Remoto') diasRem++;
+        else if (modal === 'Hibrido') diasHib++;
+      }
+    });
+
+    const saldoFinal = totalTrab - horasEsperadas;
+
+    let horasPresencial = 0, horasRemoto = 0, horasHibrido = 0;
+
+    linhas.forEach(tr => {
+      const dia = parseInt(tr.dataset.dia);
+      if (!isDiaAdministrativo(dia, parseInt(selMes.value), parseInt(selAno.value))) return;
+
+      const entrada = tr.querySelector('.entrada')?.value;
+      const saida = tr.querySelector('.saida')?.value;
+      const modal = tr.querySelector('.modal-sel')?.value;
+
+      if (entrada && saida && modal) {
+        const validacao = validarHorarios(entrada, saida);
+        if (!validacao.valido) return;
+
+        const { trab } = calcularLinha(entrada, saida, almoco, carga);
+        if (trab !== null && trab > 0) {
+          if (modal === 'Presencial') horasPresencial += trab;
+          else if (modal === 'Remoto') horasRemoto += trab;
+          else if (modal === 'Hibrido') horasHibrido += trab;
+        }
+      }
+    });
+
+    document.getElementById('resumo').innerHTML = `
+      <div class="card azul">
+        <div class="label">📊 Total Trabalhado</div>
+        <div class="valor">${horasParaStr(totalTrab)}</div>
+      </div>
+      <div class="card">
+        <div class="label">📋 Horas Esperadas</div>
+        <div class="valor">${horasParaStr(horasEsperadas)}</div>
+      </div>
+      <div class="card ${saldoFinal >= 0 ? 'verde' : 'vermelho'}">
+        <div class="label">⚖️ Saldo Final</div>
+        <div class="valor">${horasParaStr(saldoFinal)}</div>
+      </div>
+      <div class="card verde">
+        <div class="label">➕ Horas Extras</div>
+        <div class="valor">${horasParaStr(totalExtra)}</div>
+      </div>
+      <div class="card vermelho">
+        <div class="label">➖ Atrasos</div>
+        <div class="valor">${horasParaStr(totalAtraso)}</div>
+      </div>
+      <div class="card roxo">
+        <div class="label">📅 Dias Administrativos</div>
+        <div class="valor">${diasAdministrativos}</div>
+      </div>
+      <div class="card roxo">
+        <div class="label">📅 Dias Trabalhados</div>
+        <div class="valor">${diasTrab}</div>
+      </div>
+      <div class="card">
+        <div class="label">🏢 Presencial</div>
+        <div class="valor">${diasPres} dias<br><small>${horasParaStr(horasPresencial)}</small></div>
+      </div>
+      <div class="card">
+        <div class="label">🏠 Remoto</div>
+        <div class="valor">${diasRem} dias<br><small>${horasParaStr(horasRemoto)}</small></div>
+      </div>
+      <div class="card">
+        <div class="label">🔄 Híbrido</div>
+        <div class="valor">${diasHib} dias<br><small>${horasParaStr(horasHibrido)}</small></div>
+      </div>
+      ${diasComInvalido > 0 ? `
+      <div class="card vermelho">
+        <div class="label">⚠️ Dias com Erro</div>
+        <div class="valor">${diasComInvalido} dia(s)</div>
+      </div>` : ''}
+    `;
+  }
+
+  // ===================== EXPORTAR CSV =====================
+
+  function exportarCSV() {
+    const mes = parseInt(document.getElementById('selMes').value);
+    const ano = parseInt(document.getElementById('selAno').value);
+    const linhas = document.querySelectorAll('#corpo tr');
+
+    let csv = `# Escala UFRA\n`;
+    csv += `# Universidade Federal Rural da Amazônia - Campus Belém\n`;
+    csv += `# Período: ${meses[mes]} ${ano}\n`;
+    csv += `# Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
+    csv += `# Calendário Administrativo Oficial UFRA\n\n`;
+
+    csv += 'Data,Dia da Semana,Tipo Dia,Entrada,Saída,Horas Trabalhadas,Carga Esperada,Diferença,Modalidade,Observações\n';
+
+    linhas.forEach(tr => {
+      const dia = parseInt(tr.dataset.dia);
+      const data = tr.querySelector('.col-data').textContent;
+      const diaNome = tr.querySelector('.col-diasem').textContent;
+      const entrada = tr.querySelector('.entrada')?.value || '';
+      const saida = tr.querySelector('.saida')?.value || '';
+      const trab = tr.querySelector('.trab-cell').textContent;
+      const carga = tr.querySelector('.col-calc').textContent;
+      const diff = tr.querySelector('.diff-cell').textContent;
+      const modal = tr.querySelector('.modal-sel')?.value || '';
+      const obs = tr.querySelector('.obs-input')?.value || '';
+
+      let tipoDia = 'Administrativo';
+      if (tr.classList.contains('fds')) tipoDia = 'Fim de Semana';
+      else if (tr.classList.contains('feriado')) tipoDia = 'Feriado';
+
+      csv += `"${data}","${diaNome}","${tipoDia}","${entrada}","${saida}","${trab}","${carga}","${diff}","${modal}","${obs}"\n`;
+    });
+
+    const resumoCards = document.querySelectorAll('.card');
+    csv += '\n# RESUMO DO MÊS\n';
+    resumoCards.forEach(card => {
+      const label = card.querySelector('.label').textContent;
+      const valor = card.querySelector('.valor').textContent.replace(/\n/g, ' ');
+      csv += `# ${label}: ${valor}\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Escala_UFRA_${meses[mes]}_${ano}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    mostrarToast('📊 Relatório CSV exportado com sucesso!', 'success');
+  }
+
+  // ===================== LIMPAR DADOS =====================
+
+  function limparDados() {
+    if (confirm('Tem certeza que deseja limpar todos os dados salvos?')) {
+      localStorage.removeItem('escalaUFRA');
+      gerarTabela();
+      mostrarToast('🗑️ Dados limpos com sucesso!', 'info');
+    }
+  }
+
+  // ===================== SALVAR/ABRIR PLANILHA =====================
+
+  function salvarPlanilha() {
+    const dados = {
+      versao: '2.0',
+      mes: selMes.value,
+      ano: selAno.value,
+      carga: document.getElementById('selCarga').value,
+      almoco: document.getElementById('selAlmoco').value,
+      entradaPadrao: document.getElementById('horaEntradaPadrao').value,
+      saidaPadrao: document.getElementById('horaSaidaPadrao').value,
+      linhas: [],
+      dataExportacao: new Date().toISOString()
+    };
+
+    document.querySelectorAll('#corpo tr').forEach(tr => {
+      const dia = tr.dataset.dia;
+      const entrada = tr.querySelector('.entrada')?.value || '';
+      const saida = tr.querySelector('.saida')?.value || '';
+      const modalidade = tr.querySelector('.modal-sel')?.value || '';
+      const obs = tr.querySelector('.obs-input')?.value || '';
+      dados.linhas.push({ dia, entrada, saida, modalidade, obs });
+    });
+
+    const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Escala_UFRA_${meses[dados.mes]}_${dados.ano}.json`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    mostrarToast('💾 Planilha salva em formato JSON!', 'success');
+  }
+
+  function abrirPlanilha() {
+    document.getElementById('fileInput').click();
+  }
+
+  function carregarArquivo(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      mostrarToast('❌ Selecione um arquivo JSON válido.', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const dados = JSON.parse(e.target.result);
+        if (!dados.mes || !dados.ano || !dados.linhas) {
+          throw new Error('Estrutura inválida');
+        }
+
+        const confirmacao = confirm(
+          `📂 Carregar planilha?\n\n` +
+          `Arquivo: ${file.name}\n` +
+          `Período: ${meses[dados.mes]}/${dados.ano}\n` +
+          `Registros: ${dados.linhas.length} dias\n\n` +
+          `⚠️ Isso substituirá os dados atuais!`
+        );
+
+        if (!confirmacao) return;
+
+        document.getElementById('selMes').value = dados.mes;
+        document.getElementById('selAno').value = dados.ano;
+        document.getElementById('selCarga').value = dados.carga || '8';
+        document.getElementById('selAlmoco').value = dados.almoco || '1';
+        document.getElementById('horaEntradaPadrao').value = dados.entradaPadrao || '08:00';
+        document.getElementById('horaSaidaPadrao').value = dados.saidaPadrao || '17:00';
+
+        localStorage.setItem('escalaUFRA', JSON.stringify(dados));
+        gerarTabela();
+
+        mostrarToast('✅ Planilha carregada com sucesso!', 'success');
+      } catch (error) {
+        mostrarToast('❌ Erro ao carregar arquivo. Verifique se é uma planilha válida.', 'error');
+        console.error('Erro ao carregar:', error);
+      }
+    };
+
+    reader.readAsText(file);
+    event.target.value = '';
+  }
+
+  // ===================== ATALHOS DE TECLADO =====================
+
+  document.addEventListener('keydown', function(event) {
+    if (event.ctrlKey && event.key === 'g') {
+      event.preventDefault();
+      gerarTabela();
+      mostrarToast('🔄 Tabela regenerada', 'info');
+    }
+    if (event.ctrlKey && event.key === 'e') {
+      event.preventDefault();
+      exportarCSV();
+    }
+    if (event.ctrlKey && event.key === 's') {
+      event.preventDefault();
+      salvarPlanilha();
+    }
+    if (event.ctrlKey && event.key === 'o') {
+      event.preventDefault();
+      abrirPlanilha();
+    }
+    if (event.ctrlKey && event.key === 'l') {
+      event.preventDefault();
+      if (confirm('⚠️ Limpar todos os dados?')) {
+        limparDados();
+      }
+    }
+  });
+
+  // ===================== INICIALIZAÇÃO =====================
+
+  window.onload = function() {
+    document.getElementById('anoBaseFooter').textContent = ANO_ATUALIZACAO;
+    atualizarNavMesAno();
+    gerarTabela();
+
+    setTimeout(() => {
+      console.log(`⌨️ Atalhos: Ctrl+G (Gerar) | Ctrl+E (Exportar) | Ctrl+S (Salvar) | Ctrl+O (Abrir) | Ctrl+L (Limpar)`);
+    }, 2000);
+  };
+</script>
+
+</body>
+</html>
