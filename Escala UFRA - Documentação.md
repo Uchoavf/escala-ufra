@@ -90,7 +90,8 @@ const CALENDARIO_UFRA_EXTRAS = {
 
 | Arquivo | Descrição |
 |---|---|
-| `escala_ufra.html` | ✅ Aplicação principal (versão atual) |
+| `index.html` | ✅ Aplicação principal (versão atual — deploy GitHub Pages) |
+| `escala_ufra.html` | ✅ Atual — mesmo que `index.html` (renomeado para GitHub Pages) |
 | `Escala UFRA - Documentação.md` | ✅ Documentação do projeto (este arquivo) |
 | `Planilha de Escala de Trabalho - UFRA.md` | Versão anterior da documentação com código embutido |
 | `planilha_escala_trabalho (1).html` | Versão simplificada anterior (mantida como backup) |
