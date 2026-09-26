@@ -190,6 +190,31 @@ Em relação às versões anteriores, foram implementadas:
 
 ---
 
+## Melhorias Implementadas (v2.1)
+
+### 1. Persistência Multi-Mês (correção crítica)
+- **Antes**: o `localStorage` guardava apenas o último mês editado. Ao navegar para outro mês e digitar qualquer coisa, os dados do mês anterior eram perdidos silenciosamente.
+- **Agora**: cada mês/ano é salvo em sua própria chave (`escalaUFRA_v3`), então navegar entre meses não apaga mais nada. Dados salvos no formato antigo são migrados automaticamente na primeira abertura.
+
+### 2. Configurações Persistentes
+- **Antes**: carga horária, intervalo de almoço e horários padrão voltavam ao valor padrão (8h/1h/08:00–17:00) a cada vez que a página era recarregada.
+- **Agora**: essas configurações são salvas e restauradas automaticamente.
+
+### 3. Recesso Administrativo por Intervalo de Dias
+- **Antes**: o formato `{ inicio, fim, mes, desc }` documentado para recessos (ex: recesso de fim de ano) nunca funcionava — nenhum dia era marcado como feriado.
+- **Agora**: intervalos de dias são expandidos corretamente e cada dia do período é tratado como dia não administrativo.
+
+### 4. Importação de Planilha (Ctrl+O) corrigida para Janeiro
+- **Antes**: um arquivo salvo para Janeiro (mês índice `0`) era rejeitado como "estrutura inválida" por um erro de checagem (`0` é falsy em JavaScript).
+- **Agora**: a validação verifica corretamente a ausência dos campos, não seu valor.
+- Importar um arquivo agora atualiza apenas o mês daquele arquivo, sem apagar os demais meses já salvos.
+
+### 5. Botão "Limpar" agora é por mês
+- **Antes**: "Limpar" apagava todos os dados salvos do aplicativo (o que ficou mais arriscado ao passar a guardar vários meses).
+- **Agora**: limpa apenas os dados do mês em exibição. Também foi removida uma dupla confirmação redundante ao usar `Ctrl+L`.
+
+---
+
 ## Como Usar
 
 1. Abra o arquivo `escala_ufra.html` em qualquer navegador moderno
