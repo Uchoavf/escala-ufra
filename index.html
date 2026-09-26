@@ -858,7 +858,14 @@
     // 5. Datas específicas da UFRA para este ano (se houver)
     if (CALENDARIO_UFRA_EXTRAS[ano]) {
       CALENDARIO_UFRA_EXTRAS[ano].forEach(f => {
-        feriados.push({ ...f, tipo: 'UFRA', facultativo: f.facultativo || false });
+        if (f.inicio !== undefined && f.fim !== undefined) {
+          // Intervalo de dias (ex.: recesso administrativo) — expande em um item por dia
+          for (let d = f.inicio; d <= f.fim; d++) {
+            feriados.push({ dia: d, mes: f.mes, desc: f.desc, tipo: 'UFRA', facultativo: f.facultativo || false });
+          }
+        } else {
+          feriados.push({ ...f, tipo: 'UFRA', facultativo: f.facultativo || false });
+        }
       });
     }
 
@@ -1000,34 +1007,92 @@
   }
 
   // ===================== PERSISTÊNCIA =====================
+  //
+  //  Cada mês/ano é salvo em sua própria chave dentro de um único objeto
+  //  (storage.meses), para que trocar de mês nunca sobrescreva os dias já
+  //  preenchidos de outro mês. As configurações gerais (carga, almoço,
+  //  horários padrão) ficam em storage.config e valem para todos os meses.
+  // ---------------------------------------------------------------
+
+  const STORAGE_KEY = 'escalaUFRA_v3';
+  const STORAGE_KEY_LEGADO = 'escalaUFRA'; // formato antigo (v2.0): um único mês
+
+  function chaveMes(mes, ano) {
+    return parseInt(ano) + '-' + parseInt(mes);
+  }
+
+  function carregarStorage() {
+    const bruto = localStorage.getItem(STORAGE_KEY);
+    if (bruto) {
+      try {
+        const storage = JSON.parse(bruto);
+        if (!storage.meses) storage.meses = {};
+        if (!storage.config) storage.config = {};
+        return storage;
+      } catch (e) {
+        console.error('Erro ao ler dados salvos, iniciando do zero:', e);
+      }
+    }
+
+    // Migração do formato antigo (v2.0), que guardava apenas um mês por vez
+    const legado = localStorage.getItem(STORAGE_KEY_LEGADO);
+    if (legado) {
+      try {
+        const dados = JSON.parse(legado);
+        const storage = {
+          config: {
+            carga: dados.carga,
+            almoco: dados.almoco,
+            entradaPadrao: dados.entradaPadrao,
+            saidaPadrao: dados.saidaPadrao
+          },
+          meses: {}
+        };
+        if (dados.mes !== undefined && dados.ano !== undefined && dados.linhas) {
+          storage.meses[chaveMes(dados.mes, dados.ano)] = { linhas: dados.linhas };
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(storage));
+        localStorage.removeItem(STORAGE_KEY_LEGADO);
+        return storage;
+      } catch (e) {
+        console.error('Erro ao migrar dados antigos:', e);
+      }
+    }
+
+    return { config: {}, meses: {} };
+  }
+
+  function salvarStorage(storage) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(storage));
+  }
 
   function salvarDados() {
-    const dados = {
-      mes: selMes.value,
-      ano: selAno.value,
+    const storage = carregarStorage();
+
+    storage.config = {
       carga: document.getElementById('selCarga').value,
       almoco: document.getElementById('selAlmoco').value,
       entradaPadrao: document.getElementById('horaEntradaPadrao').value,
-      saidaPadrao: document.getElementById('horaSaidaPadrao').value,
-      linhas: []
+      saidaPadrao: document.getElementById('horaSaidaPadrao').value
     };
 
+    const linhas = [];
     document.querySelectorAll('#corpo tr').forEach(tr => {
       const dia = tr.dataset.dia;
       const entrada = tr.querySelector('.entrada')?.value || '';
       const saida = tr.querySelector('.saida')?.value || '';
       const modalidade = tr.querySelector('.modal-sel')?.value || '';
       const obs = tr.querySelector('.obs-input')?.value || '';
-      dados.linhas.push({ dia, entrada, saida, modalidade, obs });
+      linhas.push({ dia, entrada, saida, modalidade, obs });
     });
 
-    localStorage.setItem('escalaUFRA', JSON.stringify(dados));
+    storage.meses[chaveMes(selMes.value, selAno.value)] = { linhas };
+    salvarStorage(storage);
   }
 
-  function carregarDados() {
-    const dados = localStorage.getItem('escalaUFRA');
-    if (!dados) return null;
-    return JSON.parse(dados);
+  function carregarDadosMes(mes, ano) {
+    const storage = carregarStorage();
+    return storage.meses[chaveMes(mes, ano)] || null;
   }
 
   // ===================== TOAST =====================
@@ -1094,7 +1159,7 @@
     const corpo = document.getElementById('corpo');
     corpo.innerHTML = '';
 
-    const dadosSalvos = carregarDados();
+    const dadosMes = carregarDadosMes(mes, ano);
 
     atualizarNavMesAno();
 
@@ -1113,8 +1178,8 @@
       }
 
       let dadosDia = { entrada: '', saida: '', modalidade: '', obs: '' };
-      if (dadosSalvos && dadosSalvos.mes == mes && dadosSalvos.ano == ano) {
-        const linhaSalva = dadosSalvos.linhas.find(l => l.dia == d);
+      if (dadosMes) {
+        const linhaSalva = dadosMes.linhas.find(l => l.dia == d);
         if (linhaSalva) dadosDia = linhaSalva;
       }
 
@@ -1446,10 +1511,13 @@
   // ===================== LIMPAR DADOS =====================
 
   function limparDados() {
-    if (confirm('Tem certeza que deseja limpar todos os dados salvos?')) {
-      localStorage.removeItem('escalaUFRA');
+    const mesAtual = meses[parseInt(selMes.value)] + '/' + selAno.value;
+    if (confirm('Tem certeza que deseja limpar os dados de ' + mesAtual + '?')) {
+      const storage = carregarStorage();
+      delete storage.meses[chaveMes(selMes.value, selAno.value)];
+      salvarStorage(storage);
       gerarTabela();
-      mostrarToast('🗑️ Dados limpos com sucesso!', 'info');
+      mostrarToast('🗑️ Dados de ' + mesAtual + ' limpos com sucesso!', 'info');
     }
   }
 
@@ -1457,7 +1525,7 @@
 
   function salvarPlanilha() {
     const dados = {
-      versao: '2.0',
+      versao: '2.1',
       mes: selMes.value,
       ano: selAno.value,
       carga: document.getElementById('selCarga').value,
@@ -1507,7 +1575,7 @@
     reader.onload = function(e) {
       try {
         const dados = JSON.parse(e.target.result);
-        if (!dados.mes || !dados.ano || !dados.linhas) {
+        if (dados.mes === undefined || dados.ano === undefined || !dados.linhas) {
           throw new Error('Estrutura inválida');
         }
 
@@ -1528,7 +1596,15 @@
         document.getElementById('horaEntradaPadrao').value = dados.entradaPadrao || '08:00';
         document.getElementById('horaSaidaPadrao').value = dados.saidaPadrao || '17:00';
 
-        localStorage.setItem('escalaUFRA', JSON.stringify(dados));
+        const storage = carregarStorage();
+        storage.config = {
+          carga: dados.carga || '8',
+          almoco: dados.almoco || '1',
+          entradaPadrao: dados.entradaPadrao || '08:00',
+          saidaPadrao: dados.saidaPadrao || '17:00'
+        };
+        storage.meses[chaveMes(dados.mes, dados.ano)] = { linhas: dados.linhas };
+        salvarStorage(storage);
         gerarTabela();
 
         mostrarToast('✅ Planilha carregada com sucesso!', 'success');
@@ -1564,15 +1640,20 @@
     }
     if (event.ctrlKey && event.key === 'l') {
       event.preventDefault();
-      if (confirm('⚠️ Limpar todos os dados?')) {
-        limparDados();
-      }
+      limparDados();
     }
   });
 
   // ===================== INICIALIZAÇÃO =====================
 
   window.onload = function() {
+    const storage = carregarStorage();
+    const config = storage.config || {};
+    if (config.carga) document.getElementById('selCarga').value = config.carga;
+    if (config.almoco) document.getElementById('selAlmoco').value = config.almoco;
+    if (config.entradaPadrao) document.getElementById('horaEntradaPadrao').value = config.entradaPadrao;
+    if (config.saidaPadrao) document.getElementById('horaSaidaPadrao').value = config.saidaPadrao;
+
     atualizarNavMesAno();
     gerarTabela();
 
