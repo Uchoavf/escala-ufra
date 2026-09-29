@@ -1495,6 +1495,30 @@
       csv += `# ${label}: ${valor}\n`;
     });
 
+    const diasPresencial = [];
+    const diasRemoto = [];
+    const diasHibrido = [];
+    linhas.forEach(tr => {
+      const dia = parseInt(tr.dataset.dia);
+      if (!isDiaAdministrativo(dia, mes, ano)) return;
+      const entrada = tr.querySelector('.entrada')?.value;
+      const saida = tr.querySelector('.saida')?.value;
+      const modal = tr.querySelector('.modal-sel')?.value;
+      if (entrada && saida && modal) {
+        const validacao = validarHorarios(entrada, saida);
+        if (validacao.valido) {
+          if (modal === 'Presencial') diasPresencial.push(dia);
+          else if (modal === 'Remoto') diasRemoto.push(dia);
+          else if (modal === 'Hibrido') diasHibrido.push(dia);
+        }
+      }
+    });
+
+    csv += '\n# DIAS POR MODALIDADE (para SIGEPE)\n';
+    csv += `Presencial: ${diasPresencial.join(', ')}\n`;
+    csv += `Remoto: ${diasRemoto.join(', ')}\n`;
+    if (diasHibrido.length > 0) csv += `Híbrido: ${diasHibrido.join(', ')}\n`;
+
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -1524,6 +1548,12 @@
   // ===================== SALVAR/ABRIR PLANILHA =====================
 
   function salvarPlanilha() {
+    const mes = parseInt(selMes.value);
+    const ano = parseInt(selAno.value);
+    const diasPresencial = [];
+    const diasRemoto = [];
+    const diasHibrido = [];
+
     const dados = {
       versao: '2.1',
       mes: selMes.value,
@@ -1537,13 +1567,28 @@
     };
 
     document.querySelectorAll('#corpo tr').forEach(tr => {
-      const dia = tr.dataset.dia;
+      const dia = parseInt(tr.dataset.dia);
       const entrada = tr.querySelector('.entrada')?.value || '';
       const saida = tr.querySelector('.saida')?.value || '';
       const modalidade = tr.querySelector('.modal-sel')?.value || '';
       const obs = tr.querySelector('.obs-input')?.value || '';
       dados.linhas.push({ dia, entrada, saida, modalidade, obs });
+
+      if (isDiaAdministrativo(dia, mes, ano) && entrada && saida && modalidade) {
+        const validacao = validarHorarios(entrada, saida);
+        if (validacao.valido) {
+          if (modalidade === 'Presencial') diasPresencial.push(dia);
+          else if (modalidade === 'Remoto') diasRemoto.push(dia);
+          else if (modalidade === 'Hibrido') diasHibrido.push(dia);
+        }
+      }
     });
+
+    dados.modalidades = {
+      presencial: diasPresencial,
+      remoto: diasRemoto,
+      hibrido: diasHibrido
+    };
 
     const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
     const link = document.createElement('a');
