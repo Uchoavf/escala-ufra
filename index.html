@@ -1515,9 +1515,9 @@
     });
 
     csv += '\n# DIAS POR MODALIDADE (para SIGEPE)\n';
-    csv += `Presencial: ${diasPresencial.join(', ')}\n`;
-    csv += `Remoto: ${diasRemoto.join(', ')}\n`;
-    if (diasHibrido.length > 0) csv += `Híbrido: ${diasHibrido.join(', ')}\n`;
+    csv += `Presenciais: ${diasPresencial.map(d => pad(d)).join(', ')}\n`;
+    csv += `Remotos: ${diasRemoto.map(d => pad(d)).join(', ')}\n`;
+    if (diasHibrido.length > 0) csv += `Híbridos: ${diasHibrido.map(d => pad(d)).join(', ')}\n`;
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
