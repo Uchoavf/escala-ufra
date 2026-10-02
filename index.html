@@ -588,6 +588,18 @@
 
   <div class="controls">
     <div class="control-group">
+      <label for="nomeServidor">👤 Nome do Servidor:</label>
+      <input type="text" id="nomeServidor" placeholder="Nome completo" oninput="salvarDados()" />
+    </div>
+    <div class="control-group">
+      <label for="siapeServidor">🪪 SIAPE:</label>
+      <input type="text" id="siapeServidor" inputmode="numeric" maxlength="7" placeholder="0000000" oninput="salvarDados()" />
+    </div>
+    <div class="control-group">
+      <label for="codUnidade">🏛️ Cód. Unidade:</label>
+      <input type="text" id="codUnidade" inputmode="numeric" placeholder="26253" oninput="salvarDados()" />
+    </div>
+    <div class="control-group">
       <label for="selMes">📅 Mês:</label>
       <select id="selMes"></select>
     </div>
@@ -632,6 +644,9 @@
       </button>
       <button class="btn btn-success" onclick="exportarCSV()" title="Exportar CSV (Ctrl+E)">
         📊 Exportar
+      </button>
+      <button class="btn btn-success" onclick="exportarSIGEPE()" title="Exportar planilha de ocorrências para o SIGEPE (Ctrl+Shift+E)">
+        📤 SIGEPE
       </button>
       <button class="btn btn-info" onclick="salvarPlanilha()" title="Salvar JSON (Ctrl+S)">
         💾 Salvar
@@ -1073,7 +1088,10 @@
       carga: document.getElementById('selCarga').value,
       almoco: document.getElementById('selAlmoco').value,
       entradaPadrao: document.getElementById('horaEntradaPadrao').value,
-      saidaPadrao: document.getElementById('horaSaidaPadrao').value
+      saidaPadrao: document.getElementById('horaSaidaPadrao').value,
+      nomeServidor: document.getElementById('nomeServidor').value,
+      siape: document.getElementById('siapeServidor').value,
+      codUnidade: document.getElementById('codUnidade').value
     };
 
     const linhas = [];
@@ -1532,6 +1550,65 @@
     mostrarToast('📊 Relatório CSV exportado com sucesso!', 'success');
   }
 
+  // ===================== EXPORTAR SIGEPE (OCORRÊNCIAS) =====================
+  //
+  //  Layout da aba de ocorrências do SIGEPE (colunas A..F):
+  //    A: código da unidade | B: SIAPE | C: código da ocorrência | D,E: vazias | F: data
+  //  Códigos: 1005 = deslocamento (presencial) | 1002 = remoto.
+  //  Só entram dias administrativos (sem sábado, domingo, feriado/ponto facultativo)
+  //  com horários válidos e modalidade Presencial ou Remoto. Observações não vão no arquivo.
+
+  const OCORRENCIA_SIGEPE = { Presencial: '1005', Remoto: '1002' };
+
+  function exportarSIGEPE() {
+    const mes = parseInt(document.getElementById('selMes').value);
+    const ano = parseInt(document.getElementById('selAno').value);
+    const siape = document.getElementById('siapeServidor').value.replace(/\D/g, '');
+    const unidade = document.getElementById('codUnidade').value.replace(/\D/g, '');
+    const nome = document.getElementById('nomeServidor').value.trim();
+
+    if (!siape) {
+      mostrarToast('⚠️ Informe o SIAPE do servidor antes de exportar para o SIGEPE.', 'error');
+      document.getElementById('siapeServidor').focus();
+      return;
+    }
+
+    const registros = [];
+    let semModalidade = 0;
+    document.querySelectorAll('#corpo tr').forEach(tr => {
+      const dia = parseInt(tr.dataset.dia);
+      if (!isDiaAdministrativo(dia, mes, ano)) return;
+      const entrada = tr.querySelector('.entrada')?.value;
+      const saida = tr.querySelector('.saida')?.value;
+      if (!entrada || !saida || !validarHorarios(entrada, saida).valido) return;
+      const codigo = OCORRENCIA_SIGEPE[tr.querySelector('.modal-sel')?.value];
+      if (!codigo) { semModalidade++; return; }
+      registros.push([unidade, siape, codigo, '', '', `${pad(dia)}/${pad(mes + 1)}/${ano}`]);
+    });
+
+    if (registros.length === 0) {
+      mostrarToast('⚠️ Nenhum dia Presencial/Remoto preenchido neste mês.', 'error');
+      return;
+    }
+
+    const linhas = [['', 'SIAPE', 'CÓDIGO DA OCORRÊNCIA', '', '', 'DIAS'], ...registros];
+    const csv = '\uFEFF' + linhas.map(l => l.join(';')).join('\r\n') + '\r\n';
+
+    const sufixo = nome ? '_' + nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') : '';
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.setAttribute('href', URL.createObjectURL(blob));
+    link.setAttribute('download', `SIGEPE_Ocorrencias${sufixo}_${meses[mes]}_${ano}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    let msg = `📤 Planilha SIGEPE exportada: ${registros.length} dia(s).`;
+    if (semModalidade) msg += ` ${semModalidade} dia(s) sem modalidade ficaram de fora.`;
+    mostrarToast(msg, 'success');
+  }
+
   // ===================== LIMPAR DADOS =====================
 
   function limparDados() {
@@ -1562,6 +1639,9 @@
       almoco: document.getElementById('selAlmoco').value,
       entradaPadrao: document.getElementById('horaEntradaPadrao').value,
       saidaPadrao: document.getElementById('horaSaidaPadrao').value,
+      nomeServidor: document.getElementById('nomeServidor').value,
+      siape: document.getElementById('siapeServidor').value,
+      codUnidade: document.getElementById('codUnidade').value,
       linhas: [],
       dataExportacao: new Date().toISOString()
     };
@@ -1640,13 +1720,19 @@
         document.getElementById('selAlmoco').value = dados.almoco || '1';
         document.getElementById('horaEntradaPadrao').value = dados.entradaPadrao || '08:00';
         document.getElementById('horaSaidaPadrao').value = dados.saidaPadrao || '17:00';
+        document.getElementById('nomeServidor').value = dados.nomeServidor || '';
+        document.getElementById('siapeServidor').value = dados.siape || '';
+        document.getElementById('codUnidade').value = dados.codUnidade || '';
 
         const storage = carregarStorage();
         storage.config = {
           carga: dados.carga || '8',
           almoco: dados.almoco || '1',
           entradaPadrao: dados.entradaPadrao || '08:00',
-          saidaPadrao: dados.saidaPadrao || '17:00'
+          saidaPadrao: dados.saidaPadrao || '17:00',
+          nomeServidor: dados.nomeServidor || '',
+          siape: dados.siape || '',
+          codUnidade: dados.codUnidade || ''
         };
         storage.meses[chaveMes(dados.mes, dados.ano)] = { linhas: dados.linhas };
         salvarStorage(storage);
@@ -1670,6 +1756,11 @@
       event.preventDefault();
       gerarTabela();
       mostrarToast('🔄 Tabela regenerada', 'info');
+    }
+    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'e') {
+      event.preventDefault();
+      exportarSIGEPE();
+      return;
     }
     if (event.ctrlKey && event.key === 'e') {
       event.preventDefault();
@@ -1698,6 +1789,9 @@
     if (config.almoco) document.getElementById('selAlmoco').value = config.almoco;
     if (config.entradaPadrao) document.getElementById('horaEntradaPadrao').value = config.entradaPadrao;
     if (config.saidaPadrao) document.getElementById('horaSaidaPadrao').value = config.saidaPadrao;
+    if (config.nomeServidor) document.getElementById('nomeServidor').value = config.nomeServidor;
+    if (config.siape) document.getElementById('siapeServidor').value = config.siape;
+    if (config.codUnidade) document.getElementById('codUnidade').value = config.codUnidade;
 
     atualizarNavMesAno();
     gerarTabela();
