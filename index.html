@@ -509,6 +509,17 @@
       text-align: center;
     }
 
+    .identificacao {
+      display: none;
+      background: #fff;
+      border-left: 5px solid #28a745;
+      border-radius: 10px;
+      padding: 12px 18px;
+      margin-bottom: 15px;
+      font-size: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .identificacao span { margin-right: 22px; display: inline-block; }
     footer {
       text-align: center;
       margin-top: 30px;
@@ -588,16 +599,16 @@
 
   <div class="controls">
     <div class="control-group">
-      <label for="nomeServidor">👤 Nome do Servidor:</label>
-      <input type="text" id="nomeServidor" placeholder="Nome completo" oninput="salvarDados()" />
+      <label for="nomeServidor">👤 Nome do(a) Servidor(a):</label>
+      <input type="text" id="nomeServidor" placeholder="Nome completo" oninput="salvarDados(); atualizarIdentificacao()" />
     </div>
     <div class="control-group">
       <label for="siapeServidor">🪪 SIAPE:</label>
-      <input type="text" id="siapeServidor" inputmode="numeric" maxlength="7" placeholder="0000000" oninput="salvarDados()" />
+      <input type="text" id="siapeServidor" inputmode="numeric" maxlength="7" placeholder="0000000" oninput="salvarDados(); atualizarIdentificacao()" />
     </div>
     <div class="control-group">
-      <label for="codUnidade">🏛️ Cód. Unidade:</label>
-      <input type="text" id="codUnidade" inputmode="numeric" placeholder="26253" oninput="salvarDados()" />
+      <label for="codUnidade">🏛️ Unidade:</label>
+      <input type="text" id="codUnidade" inputmode="numeric" placeholder="26253" oninput="salvarDados(); atualizarIdentificacao()" />
     </div>
     <div class="control-group">
       <label for="selMes">📅 Mês:</label>
@@ -668,6 +679,8 @@
 
   <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="carregarArquivo(event)" />
 
+  <div class="identificacao" id="identificacao"></div>
+
   <div class="wrapper">
     <table id="tabela">
       <thead>
@@ -695,7 +708,7 @@
     💡 Dados salvos automaticamente no navegador &bull; Use Ctrl+G/E/S/O/L para atalhos<br>
     🎉 <strong>Calendário Oficial UFRA</strong> — Feriados nacionais, estaduais (PA) e municipais (Belém)<br>
     <br>
-    <strong>💻 Desenvolvido por Ewerton Uchôa</strong>
+    <strong>💻 Desenvolvido por Ewerton Uchôa Vieira Fiel</strong>
   </footer>
 </div>
 
@@ -762,14 +775,15 @@
   // ---------------------------------------------------------------
   const FERIADOS_MUNICIPAIS = [
     { dia: 12, mes: 0, desc: "Aniversário de Belém" },
-    { dia: 8,  mes: 11, desc: "Nossa Senhora da Conceição (Padroeira de Belém)" },
-    { dia: 26, mes: 9, desc: "Recírio — Belém" }
+    { dia: 8,  mes: 11, desc: "Nossa Senhora da Conceição (Padroeira de Belém)" }
+    // Recírio: móvel (15 dias após o Círio) — calculado em obterFeriadosMovel()
   ];
 
   // ---------------------------------------------------------------
   //  PONTOS FACULTATIVOS FIXOS (Governo Federal)
   // ---------------------------------------------------------------
   const PONTOS_FACULTATIVOS = [
+    { dia: 28, mes: 9,  desc: "Dia do Servidor Público" },
     { dia: 24, mes: 11, desc: "Véspera de Natal" },
     { dia: 31, mes: 11, desc: "Véspera de Ano Novo" }
   ];
@@ -790,6 +804,8 @@
     // --- ANO BASE: 2026 ---
     // Fonte: Calendário Administrativo UFRA 2026 (Portaria/Resolução específica)
     2026: [
+      // Pontos facultativos federais — Portaria MGI nº 11.460/2025
+      { dia: 20, mes: 3, desc: "Ponto Facultativo (Portaria MGI)", facultativo: true },
       // Exemplo de possíveis datas específicas da UFRA:
       // { dia: 28, mes: 9, desc: "Aniversário UFRA (Ponto Facultativo)", facultativo: true },
       // { inicio: 2, fim: 31, mes: 11, desc: "Recesso Administrativo UFRA" }
@@ -839,6 +855,14 @@
       { diasDepois: 60, desc: "Corpus Christi" },
       { diasDepois: 61, desc: "Ponto Facultativo pós Corpus Christi", facultativo: true }
     ];
+
+    // Círio de Nazaré: 2º domingo de outubro (feriado estadual, PA).
+    // Recírio: segunda-feira 15 dias depois (ponto facultativo em Belém).
+    const primeiroOut = new Date(ano, 9, 1);
+    const diaCirio = 1 + ((7 - primeiroOut.getDay()) % 7) + 7;
+    const recirio = new Date(ano, 9, diaCirio + 15);
+    feriados.push({ dia: diaCirio, mes: 9, desc: "Círio de Nazaré (Pará)", facultativo: false, tipo: "Estadual (PA)" });
+    feriados.push({ dia: recirio.getDate(), mes: recirio.getMonth(), desc: "Recírio (Belém)", facultativo: true, tipo: "Municipal (Belém)" });
 
     eventos.forEach(evt => {
       const data = new Date(pascoa);
@@ -891,7 +915,7 @@
         e => e.dia === f.dia && e.mes === f.mes
       );
       if (!jaExiste) {
-        feriados.push({ ...f, tipo: f.facultativo ? 'Facultativo' : 'Nacional' });
+        feriados.push({ ...f, tipo: f.tipo || (f.facultativo ? 'Facultativo' : 'Nacional') });
       }
     });
 
@@ -1259,6 +1283,23 @@
     atualizarContadorTempoReal();
     atualizarResumo(carga);
     mostrarFeriadosDoMes(mes, ano);
+    atualizarIdentificacao();
+  }
+
+  // ===================== IDENTIFICAÇÃO DO SERVIDOR =====================
+
+  function atualizarIdentificacao() {
+    const nome = document.getElementById('nomeServidor').value.trim();
+    const siape = document.getElementById('siapeServidor').value.trim();
+    const unidade = document.getElementById('codUnidade').value.trim();
+    const el = document.getElementById('identificacao');
+    const esc = t => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const partes = [];
+    if (nome) partes.push(`<span>👤 <strong>Servidor(a):</strong> ${esc(nome)}</span>`);
+    if (siape) partes.push(`<span>🪪 <strong>SIAPE:</strong> ${esc(siape)}</span>`);
+    if (unidade) partes.push(`<span>🏛️ <strong>Unidade:</strong> ${esc(unidade)}</span>`);
+    el.innerHTML = partes.join('');
+    el.style.display = partes.length ? 'block' : 'none';
   }
 
   // ===================== FERIADOS DO MÊS =====================
@@ -1480,6 +1521,12 @@
 
     let csv = `# Escala UFRA\n`;
     csv += `# Universidade Federal Rural da Amazônia - Campus Belém\n`;
+    const nomeServ = document.getElementById('nomeServidor').value.trim();
+    const siapeServ = document.getElementById('siapeServidor').value.trim();
+    const unidadeServ = document.getElementById('codUnidade').value.trim();
+    if (nomeServ) csv += `# Servidor(a): ${nomeServ}\n`;
+    if (siapeServ) csv += `# SIAPE: ${siapeServ}\n`;
+    if (unidadeServ) csv += `# Unidade: ${unidadeServ}\n`;
     csv += `# Período: ${meses[mes]} ${ano}\n`;
     csv += `# Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
     csv += `# Calendário Administrativo Oficial UFRA\n\n`;
