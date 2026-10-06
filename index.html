@@ -312,6 +312,9 @@
     tr.presencial { background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important; }
     tr.remoto     { background: linear-gradient(135deg, #cce5ff 0%, #b3d9ff 100%) !important; }
     tr.hibrido    { background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%) !important; }
+    tr.medico     { background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%) !important; }
+    tr.ferias     { background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%) !important; }
+    tr.licenca    { background: linear-gradient(135deg, #e2e3e5 0%, #d6d8db 100%) !important; }
     tr.fds        { background: #f8f9fa !important; opacity: 0.7; }
     tr.feriado    { background: linear-gradient(135deg, #ffe6e6 0%, #ffcccc 100%) !important; opacity: 0.8; }
 
@@ -1220,6 +1223,9 @@
             <option value="Presencial" ${dadosDia.modalidade === 'Presencial' ? 'selected' : ''}>🏢 Presencial</option>
             <option value="Remoto" ${dadosDia.modalidade === 'Remoto' ? 'selected' : ''}>🏠 Remoto</option>
             <option value="Hibrido" ${dadosDia.modalidade === 'Hibrido' ? 'selected' : ''}>🔄 Híbrido</option>
+            <option value="Medico" ${dadosDia.modalidade === 'Medico' ? 'selected' : ''}>⚕️ Médico/Consulta</option>
+            <option value="Ferias" ${dadosDia.modalidade === 'Ferias' ? 'selected' : ''}>🏖️ Férias</option>
+            <option value="Licenca" ${dadosDia.modalidade === 'Licenca' ? 'selected' : ''}>📋 Licença</option>
           </select>
         </td>
         <td class="col-obs">
@@ -1323,10 +1329,13 @@
 
   function atualizarModalidade(sel) {
     const tr = sel.closest('tr');
-    tr.classList.remove('presencial', 'remoto', 'hibrido');
+    tr.classList.remove('presencial', 'remoto', 'hibrido', 'medico', 'ferias', 'licenca');
     if (sel.value === 'Presencial') tr.classList.add('presencial');
     else if (sel.value === 'Remoto') tr.classList.add('remoto');
     else if (sel.value === 'Hibrido') tr.classList.add('hibrido');
+    else if (sel.value === 'Medico') tr.classList.add('medico');
+    else if (sel.value === 'Ferias') tr.classList.add('ferias');
+    else if (sel.value === 'Licenca') tr.classList.add('licenca');
 
     salvarDados();
     atualizarContadorTempoReal();
@@ -1498,6 +1507,9 @@
     const diasPresencial = [];
     const diasRemoto = [];
     const diasHibrido = [];
+    const diasMedico = [];
+    const diasFerias = [];
+    const diasLicenca = [];
     linhas.forEach(tr => {
       const dia = parseInt(tr.dataset.dia);
       if (!isDiaAdministrativo(dia, mes, ano)) return;
@@ -1510,6 +1522,9 @@
           if (modal === 'Presencial') diasPresencial.push(dia);
           else if (modal === 'Remoto') diasRemoto.push(dia);
           else if (modal === 'Hibrido') diasHibrido.push(dia);
+          else if (modal === 'Medico') diasMedico.push(dia);
+          else if (modal === 'Ferias') diasFerias.push(dia);
+          else if (modal === 'Licenca') diasLicenca.push(dia);
         }
       }
     });
@@ -1518,6 +1533,9 @@
     csv += `Presenciais: ${diasPresencial.map(d => pad(d)).join(', ')}\n`;
     csv += `Remotos: ${diasRemoto.map(d => pad(d)).join(', ')}\n`;
     if (diasHibrido.length > 0) csv += `Híbridos: ${diasHibrido.map(d => pad(d)).join(', ')}\n`;
+    if (diasMedico.length > 0) csv += `Médicos/Consulta: ${diasMedico.map(d => pad(d)).join(', ')}\n`;
+    if (diasFerias.length > 0) csv += `Férias: ${diasFerias.map(d => pad(d)).join(', ')}\n`;
+    if (diasLicenca.length > 0) csv += `Licenças: ${diasLicenca.map(d => pad(d)).join(', ')}\n`;
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -1553,9 +1571,12 @@
     const diasPresencial = [];
     const diasRemoto = [];
     const diasHibrido = [];
+    const diasMedico = [];
+    const diasFerias = [];
+    const diasLicenca = [];
 
     const dados = {
-      versao: '2.1',
+      versao: '2.2',
       mes: selMes.value,
       ano: selAno.value,
       carga: document.getElementById('selCarga').value,
@@ -1580,6 +1601,9 @@
           if (modalidade === 'Presencial') diasPresencial.push(dia);
           else if (modalidade === 'Remoto') diasRemoto.push(dia);
           else if (modalidade === 'Hibrido') diasHibrido.push(dia);
+          else if (modalidade === 'Medico') diasMedico.push(dia);
+          else if (modalidade === 'Ferias') diasFerias.push(dia);
+          else if (modalidade === 'Licenca') diasLicenca.push(dia);
         }
       }
     });
@@ -1587,7 +1611,10 @@
     dados.modalidades = {
       presencial: diasPresencial,
       remoto: diasRemoto,
-      hibrido: diasHibrido
+      hibrido: diasHibrido,
+      medico: diasMedico,
+      ferias: diasFerias,
+      licenca: diasLicenca
     };
 
     const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
