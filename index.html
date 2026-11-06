@@ -681,7 +681,7 @@
       <button class="btn btn-primary" onclick="gerarTabela()" title="Gerar/Atualizar tabela do mês (Ctrl+G)">
         🔄 Gerar
       </button>
-      <button class="btn btn-success" onclick="exportarPlanilha()" title="Exportar planilha Excel com as abas Escala e SIGEPE (Ctrl+E)">
+      <button class="btn btn-success" onclick="exportarPlanilha()" title="Exportar planilha do SIGEPE em Excel (Ctrl+E)">
         📊 Exportar
       </button>
       <button class="btn btn-info" onclick="salvarPlanilha()" title="Salvar JSON (Ctrl+S)">
@@ -1708,94 +1708,29 @@
     `;
   }
 
-  // ===================== EXPORTAR PLANILHA (XLSX, 2 ABAS) =====================
+  // ===================== EXPORTAR PLANILHA SIGEPE (XLSX, 1 ABA) =====================
   //
-  //  Gera UM único arquivo .xlsx com duas abas:
-  //    • "Escala"  — relatório completo do mês (identificação, dias, resumo e
-  //                  dias por modalidade).
-  //    • "SIGEPE"  — ocorrências no layout de importação do SIGEPE (colunas A..F):
+  //  Gera UM arquivo .xlsx com UMA aba ("SIGEPE"), só com o que entra no SIGEPE:
+  //    • Colunas A..F — ocorrências no layout de importação do SIGEPE:
   //        A: código da unidade | B: SIAPE | C: código da ocorrência | D,E: vazias | F: data
   //      Códigos: 1005 = deslocamento (presencial) | 1002 = remoto.
   //      Só entram dias administrativos (sem sábado, domingo, feriado/ponto facultativo)
   //      com horários válidos e modalidade Presencial ou Remoto. Observações não entram.
+  //    • Colunas H..I — quadro "DIAS POR MODALIDADE" (Presenciais / Remotos), para conferência.
   //
   //  O .xlsx é montado aqui mesmo (sem bibliotecas externas): é um ZIP de XMLs.
 
   const OCORRENCIA_SIGEPE = { Presencial: '1005', Remoto: '1002' };
 
-  function montarAbaEscala(mes, ano) {
-    const linhas = document.querySelectorAll('#corpo tr');
-    const rows = [];
-    const negrito = [];
-    const titulo = t => { negrito.push(rows.length); rows.push([t]); };
-
-    titulo('Escala UFRA');
-    rows.push(['Universidade Federal Rural da Amazônia - Campus Belém']);
-    const nomeServ = document.getElementById('nomeServidor').value.trim();
-    const siapeServ = document.getElementById('siapeServidor').value.trim();
-    const unidadeServ = document.getElementById('codUnidade').value.trim();
-    if (nomeServ) rows.push(['Servidor(a):', nomeServ]);
-    if (siapeServ) rows.push(['SIAPE:', siapeServ]);
-    if (unidadeServ) rows.push(['Unidade:', unidadeServ]);
-    rows.push(['Período:', `${meses[mes]} ${ano}`]);
-    rows.push(['Gerado em:', new Date().toLocaleString('pt-BR')]);
-    rows.push([]);
-
-    negrito.push(rows.length);
-    rows.push(['Data', 'Dia da Semana', 'Tipo Dia', 'Entrada', 'Saída', 'Horas Trabalhadas', 'Carga Esperada', 'Diferença', 'Modalidade', 'Observações']);
-
-    const porModalidade = { Presencial: [], Remoto: [], Hibrido: [], Medico: [], Ferias: [], Licenca: [] };
-    linhas.forEach(tr => {
-      const dia = parseInt(tr.dataset.dia);
-      const entrada = tr.querySelector('.entrada')?.value || '';
-      const saida = tr.querySelector('.saida')?.value || '';
-      const modal = tr.querySelector('.modal-sel')?.value || '';
-      let tipoDia = 'Administrativo';
-      if (tr.classList.contains('fds')) tipoDia = 'Fim de Semana';
-      else if (tr.classList.contains('feriado')) tipoDia = 'Feriado — ' + getDescricaoFeriado(dia, mes, ano).replace(' ⏰', ' (ponto facultativo)');
-      const adm = isDiaAdministrativo(dia, mes, ano);
-      rows.push([
-        tr.querySelector('.col-data').textContent,
-        dias[new Date(ano, mes, dia).getDay()],
-        tipoDia,
-        adm ? entrada : '',
-        adm ? saida : '',
-        tr.querySelector('.trab-cell').textContent,
-        tr.querySelectorAll('.col-calc')[1]?.textContent || '',
-        tr.querySelector('.diff-cell').textContent,
-        (adm && modal) ? (tr.querySelector('.modal-sel').selectedOptions[0]?.textContent.replace(/^\S+\s/, '') || '') : '',
-        tr.querySelector('.obs-input')?.value || ''
-      ]);
-      if (adm && entrada && saida && porModalidade[modal] && validarHorarios(entrada, saida).valido) {
-        porModalidade[modal].push(dia);
-      }
-    });
-
-    rows.push([]);
-    titulo('RESUMO DO MÊS');
-    document.querySelectorAll('#resumo .card').forEach(card => {
-      const label = card.querySelector('.label')?.textContent.replace(/^\S+\s/, '').trim();
-      const valorEl = card.querySelector('.valor');
-      const valor = valorEl ? valorEl.innerHTML.replace(/<br\s*\/?>/gi, ' — ').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim() : '';
-      if (label) rows.push([label, valor]);
-    });
-
-    rows.push([]);
-    titulo('DIAS POR MODALIDADE');
-    const nomes = { Presencial: 'Presenciais', Remoto: 'Remotos', Hibrido: 'Híbridos', Medico: 'Médicos/Consulta', Ferias: 'Férias', Licenca: 'Licenças' };
-    Object.keys(nomes).forEach(k => {
-      if (k === 'Presencial' || k === 'Remoto' || porModalidade[k].length) {
-        rows.push([nomes[k] + ':', porModalidade[k].map(d => pad(d)).join(', ')]);
-      }
-    });
-
-    return { nome: 'Escala', rows, negrito, larguras: [14, 16, 34, 10, 10, 17, 15, 12, 18, 40] };
-  }
+  // Número sem zero à esquerda vira célula numérica (evita o aviso "número
+  // armazenado como texto" no Excel); com zero à esquerda fica como texto.
+  const numOuTexto = v => (/^[1-9]\d{0,14}$/.test(v) ? { v, n: true } : v);
 
   function montarAbaSIGEPE(mes, ano) {
     const siape = document.getElementById('siapeServidor').value.replace(/\D/g, '');
     const unidade = document.getElementById('codUnidade').value.replace(/\D/g, '');
     const registros = [];
+    const diasPorModalidade = { Presencial: [], Remoto: [] };
     let semModalidade = 0;
     document.querySelectorAll('#corpo tr').forEach(tr => {
       const dia = parseInt(tr.dataset.dia);
@@ -1803,12 +1738,29 @@
       const entrada = tr.querySelector('.entrada')?.value;
       const saida = tr.querySelector('.saida')?.value;
       if (!entrada || !saida || !validarHorarios(entrada, saida).valido) return;
-      const codigo = OCORRENCIA_SIGEPE[tr.querySelector('.modal-sel')?.value];
+      const modal = tr.querySelector('.modal-sel')?.value;
+      const codigo = OCORRENCIA_SIGEPE[modal];
       if (!codigo) { semModalidade++; return; }
-      registros.push([unidade, siape, codigo, '', '', `${pad(dia)}/${pad(mes + 1)}/${ano}`]);
+      diasPorModalidade[modal].push(dia);
+      registros.push([numOuTexto(unidade), numOuTexto(siape), numOuTexto(codigo), '', '', `${pad(dia)}/${pad(mes + 1)}/${ano}`]);
     });
-    const rows = [['', 'SIAPE', 'CÓDIGO DA OCORRÊNCIA', '', '', 'DIAS'], ...(siape ? registros : [])];
-    return { nome: 'SIGEPE', rows, negrito: [0], larguras: [12, 12, 24, 6, 6, 14], total: siape ? registros.length : 0, semModalidade, temSiape: !!siape };
+
+    const negrito = t => ({ v: t, b: true });
+    const rows = [['', negrito('SIAPE'), negrito('CÓDIGO DA OCORRÊNCIA'), '', '', negrito('DIAS')], ...(siape ? registros : [])];
+
+    // Quadro de conferência ao lado (colunas H e I), começando na linha 2
+    const quadro = [
+      [negrito('DIAS POR MODALIDADE')],
+      [negrito('Presenciais:'), diasPorModalidade.Presencial.map(d => pad(d)).join(', ')],
+      [negrito('Remotos:'), diasPorModalidade.Remoto.map(d => pad(d)).join(', ')]
+    ];
+    quadro.forEach((linha, i) => {
+      const r = rows[i + 1] || (rows[i + 1] = ['', '', '', '', '', '']);
+      while (r.length < 7) r.push('');
+      r.push(...linha);
+    });
+
+    return { nome: 'SIGEPE', rows, larguras: [12, 12, 24, 6, 6, 14, 4, 14, 40], total: siape ? registros.length : 0, semModalidade, temSiape: !!siape };
   }
 
   // ---- Gerador mínimo de XLSX (ZIP sem compressão + SpreadsheetML) ----
@@ -1885,10 +1837,16 @@
 
   function xmlAba(aba) {
     const cols = aba.larguras.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('');
+    // Cada célula: texto, ou { v, b: negrito, n: número }
     const linhas = aba.rows.map((r, ri) => {
-      const estilo = aba.negrito.includes(ri) ? ' s="1"' : '';
-      const celulas = r.map((v, ci) => (v === '' || v === undefined || v === null) ? ''
-        : `<c r="${colLetra(ci)}${ri + 1}" t="inlineStr"${estilo}><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`).join('');
+      const celulas = r.map((c, ci) => {
+        const cel = (c !== null && typeof c === 'object') ? c : { v: c };
+        if (cel.v === '' || cel.v === undefined || cel.v === null) return '';
+        const ref = `${colLetra(ci)}${ri + 1}`;
+        const estilo = cel.b ? ' s="1"' : '';
+        if (cel.n) return `<c r="${ref}"${estilo}><v>${xmlEsc(cel.v)}</v></c>`;
+        return `<c r="${ref}" t="inlineStr"${estilo}><is><t xml:space="preserve">${xmlEsc(cel.v)}</t></is></c>`;
+      }).join('');
       return `<row r="${ri + 1}">${celulas}</row>`;
     }).join('');
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
@@ -1951,19 +1909,18 @@
     const ano = parseInt(document.getElementById('selAno').value);
     const nome = document.getElementById('nomeServidor').value.trim();
 
-    const abaEscala = montarAbaEscala(mes, ano);
     const abaSigepe = montarAbaSIGEPE(mes, ano);
 
     const sufixo = nome ? '_' + nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') : '';
-    baixarBlob(gerarXLSX([abaEscala, abaSigepe]), `Escala_UFRA${sufixo}_${meses[mes]}_${ano}.xlsx`);
+    baixarBlob(gerarXLSX([abaSigepe]), `SIGEPE_Ocorrencias${sufixo}_${meses[mes]}_${ano}.xlsx`);
 
     if (!abaSigepe.temSiape) {
-      mostrarToast('📊 Planilha exportada. ⚠️ Aba SIGEPE vazia: informe o SIAPE do servidor.', 'error');
+      mostrarToast('📊 Planilha exportada. ⚠️ Sem ocorrências: informe o SIAPE do servidor.', 'error');
       document.getElementById('siapeServidor').focus();
       return;
     }
-    let msg = `📊 Planilha exportada (abas Escala + SIGEPE: ${abaSigepe.total} dia(s)).`;
-    if (abaSigepe.semModalidade) msg += ` ${abaSigepe.semModalidade} dia(s) sem modalidade ficaram fora do SIGEPE.`;
+    let msg = `📊 Planilha SIGEPE exportada: ${abaSigepe.total} dia(s).`;
+    if (abaSigepe.semModalidade) msg += ` ${abaSigepe.semModalidade} dia(s) sem modalidade ficaram de fora.`;
     mostrarToast(msg, 'success');
   }
 

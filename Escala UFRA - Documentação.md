@@ -146,7 +146,7 @@ Os ajustes ficam salvos no navegador (por ano) e também vão no arquivo JSON do
 
 ### ✅ Persistência
 - Salvamento automático no navegador (localStorage)
-- Exportar **uma única planilha Excel (.xlsx)** com duas abas: **Escala** (relatório completo do mês) e **SIGEPE** (ocorrências no layout de importação)
+- Exportar **uma única planilha Excel (.xlsx), com uma aba só**, pronta para o SIGEPE: colunas A..F com as ocorrências (unidade, SIAPE, código 1005/1002, data) e, ao lado (colunas H..I), o quadro **DIAS POR MODALIDADE** (Presenciais / Remotos)
 - Salvar planilha como arquivo JSON (com versão e data)
 - Carregar planilha a partir de arquivo JSON
 
@@ -154,7 +154,7 @@ Os ajustes ficam salvos no navegador (por ano) e também vão no arquivo JSON do
 - Navegação entre meses com botões ◀ ▶
 - Atalhos de teclado:
   - `Ctrl+G` — Gerar tabela
-  - `Ctrl+E` — Exportar planilha (.xlsx com abas Escala e SIGEPE)
+  - `Ctrl+E` — Exportar planilha do SIGEPE (.xlsx)
   - `Ctrl+S` — Salvar planilha (JSON)
   - `Ctrl+O` — Abrir/carregar planilha
   - `Ctrl+L` — Limpar dados
@@ -227,6 +227,22 @@ Em relação às versões anteriores, foram implementadas:
 
 ---
 
+## Melhorias Implementadas (v2.3)
+
+### 1. Ajuste de feriados direto no app
+- **Antes**: quando o Governo Federal transferia um feriado/ponto facultativo (ex.: Dia do Servidor 2026, de 28/10 para 30/10), o dia antigo ficava travado e não podia ser preenchido.
+- **Agora**: o quadro "Feriados do mês" tem os botões **Mover**, **Não é feriado**, **Restaurar** e **Adicionar feriado / ponto facultativo**. Os ajustes ficam salvos no navegador (por ano) e vão junto no JSON do Salvar/Abrir.
+- Calendário 2026 corrigido no código: Dia do Servidor em 30/10 (nova constante `FERIADOS_REMOVIDOS[ano]` para datas transferidas).
+
+### 2. Exportação única para o SIGEPE
+- **Antes**: dois botões (Exportar CSV e SIGEPE CSV) geravam dois arquivos separados.
+- **Agora**: um único botão **📊 Exportar** (`Ctrl+E`) gera **um arquivo .xlsx com uma aba só**:
+  - Colunas **A..F**: ocorrências no layout do SIGEPE (unidade, SIAPE, código 1005/1002, data).
+  - Colunas **H..I**: quadro **DIAS POR MODALIDADE** (Presenciais / Remotos) para conferência.
+- SIAPE, unidade e código saem como número (sem o aviso "número armazenado como texto" do Excel); a planilha é gerada sem bibliotecas externas.
+
+---
+
 ## Como Usar
 
 1. Abra o arquivo `escala_ufra.html` em qualquer navegador moderno
@@ -236,7 +252,7 @@ Em relação às versões anteriores, foram implementadas:
 5. Ajuste horários de entrada/saída por dia conforme necessário
 6. Selecione a modalidade de trabalho (Presencial/Remoto/Híbrido)
 7. Acompanhe os totais nos cards de resumo
-8. Exporte a planilha (.xlsx com abas Escala e SIGEPE) ou salve como JSON ao final
+8. Exporte a planilha do SIGEPE (.xlsx) ou salve como JSON ao final
 
 ---
 
@@ -259,7 +275,7 @@ PERSISTÊNCIA                ← localStorage + JSON
 GERAR TABELA                ← montagem da tabela HTML
 FERIADOS DO MÊS             ← exibição dinâmica
 RESUMO                      ← cards de totais
-EXPORTAR PLANILHA (XLSX)    ← um arquivo, abas Escala + SIGEPE
+EXPORTAR PLANILHA (XLSX)    ← um arquivo, uma aba (SIGEPE + dias por modalidade)
 ATALHOS DE TECLADO          ← Ctrl+G/E/S/O/L
 ```
 
