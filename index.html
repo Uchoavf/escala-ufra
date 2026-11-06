@@ -415,6 +415,31 @@
       font-size: 14px;
     }
 
+    .feriado-item { flex-wrap: wrap; gap: 6px; }
+    .feriado-item.manual { border-left-color: #1976d2; }
+    .feriado-item.desmarcado { opacity: 0.75; border-left-color: #9e9e9e; }
+    .feriado-acoes { margin-left: auto; display: flex; gap: 6px; }
+    .feriado-btn {
+      border: 1px solid #ffb74d;
+      background: #fff;
+      color: #bf360c;
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .feriado-btn:hover { background: #fff3e0; }
+    .feriados-rodape {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      text-align: center;
+    }
+    .feriados-rodape small { color: #8d6e63; }
+
     .sem-feriados {
       text-align: center;
       color: #4caf50;
@@ -656,11 +681,8 @@
       <button class="btn btn-primary" onclick="gerarTabela()" title="Gerar/Atualizar tabela do mês (Ctrl+G)">
         🔄 Gerar
       </button>
-      <button class="btn btn-success" onclick="exportarCSV()" title="Exportar CSV (Ctrl+E)">
+      <button class="btn btn-success" onclick="exportarPlanilha()" title="Exportar planilha Excel com as abas Escala e SIGEPE (Ctrl+E)">
         📊 Exportar
-      </button>
-      <button class="btn btn-success" onclick="exportarSIGEPE()" title="Exportar planilha de ocorrências para o SIGEPE (Ctrl+Shift+E)">
-        📤 SIGEPE
       </button>
       <button class="btn btn-info" onclick="salvarPlanilha()" title="Salvar JSON (Ctrl+S)">
         💾 Salvar
@@ -809,6 +831,8 @@
     2026: [
       // Pontos facultativos federais — Portaria MGI nº 11.460/2025
       { dia: 20, mes: 3, desc: "Ponto Facultativo (Portaria MGI)", facultativo: true },
+      // Dia do Servidor Público transferido de 28/10 para 30/10 (ver FERIADOS_REMOVIDOS)
+      { dia: 30, mes: 9, desc: "Dia do Servidor Público (transferido de 28/10)", facultativo: true },
       // Exemplo de possíveis datas específicas da UFRA:
       // { dia: 28, mes: 9, desc: "Aniversário UFRA (Ponto Facultativo)", facultativo: true },
       // { inicio: 2, fim: 31, mes: 11, desc: "Recesso Administrativo UFRA" }
@@ -817,6 +841,24 @@
     // 2027: [
     //   { dia: X, mes: Y, desc: "...", facultativo: true }
     // ]
+  };
+
+  // ---------------------------------------------------------------
+  //  FERIADOS/PONTOS REMOVIDOS OU TRANSFERIDOS (por ano)
+  // ---------------------------------------------------------------
+  //  Quando o Governo Federal (ou a UFRA) transfere uma data, coloque
+  //  aqui a data ORIGINAL que deixou de ser feriado, e a NOVA data em
+  //  CALENDARIO_UFRA_EXTRAS do mesmo ano.
+  //
+  //  💡 O servidor também pode fazer esse ajuste direto no app, pelo
+  //     quadro "Feriados do mês" (botões Mover / Não é feriado / Adicionar),
+  //     sem precisar mexer no código.
+  // ---------------------------------------------------------------
+  const FERIADOS_REMOVIDOS = {
+    2026: [
+      // Dia do Servidor Público transferido de 28/10 (quarta) para 30/10 (sexta)
+      { dia: 28, mes: 9 }
+    ]
   };
 
   // ---------------------------------------------------------------
@@ -922,7 +964,139 @@
       }
     });
 
-    return feriados;
+    // 7. Datas que o governo/UFRA removeram ou transferiram (no código)
+    let resultado = feriados;
+    const removidosOficiais = (FERIADOS_REMOVIDOS[ano] || []).map(r => chaveDia(r.dia, r.mes));
+    if (removidosOficiais.length) {
+      resultado = resultado.filter(f => !removidosOficiais.includes(chaveDia(f.dia, f.mes)));
+    }
+
+    // 8. Ajustes feitos pelo próprio servidor no app (salvos no navegador)
+    const ajuste = obterAjustesFeriados(ano);
+    if (ajuste.removidos.length) {
+      resultado = resultado.filter(f => !ajuste.removidos.includes(chaveDia(f.dia, f.mes)));
+    }
+    ajuste.adicionados.forEach(f => {
+      resultado = resultado.filter(e => !(e.dia === f.dia && e.mes === f.mes));
+      resultado.push({ dia: f.dia, mes: f.mes, desc: f.desc, tipo: 'Ajuste manual', facultativo: !!f.facultativo, manual: true });
+    });
+
+    return resultado.sort((a, b) => a.mes - b.mes || a.dia - b.dia);
+  }
+
+  // Lista "original" (sem ajustes manuais) — usada para mostrar o que foi desmarcado
+  function obterFeriadosOriginaisMes(mes, ano) {
+    const ajuste = obterAjustesFeriados(ano);
+    if (!ajuste.removidos.length) return [];
+    return obterFeriadosAnoSemAjustes(ano).filter(f => f.mes === mes && ajuste.removidos.includes(chaveDia(f.dia, f.mes)));
+  }
+
+  // ===================== AJUSTES MANUAIS DE FERIADOS =====================
+  //  Guardados no navegador em storage.feriadosAjustes[ano] =
+  //    { removidos: ["9-28", ...], adicionados: [{ dia, mes, desc, facultativo }] }
+
+  function chaveDia(dia, mes) { return parseInt(mes) + '-' + parseInt(dia); }
+
+  let _ajustesCache = null;
+
+  function obterAjustesFeriados(ano) {
+    if (_ajustesCache === null) {
+      try {
+        const st = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        _ajustesCache = st.feriadosAjustes || {};
+      } catch (e) { _ajustesCache = {}; }
+    }
+    const a = _ajustesCache[ano] || {};
+    return { removidos: a.removidos || [], adicionados: a.adicionados || [] };
+  }
+
+  function salvarAjustesFeriados(ano, ajuste) {
+    const storage = carregarStorage();
+    storage.feriadosAjustes = storage.feriadosAjustes || {};
+    if (!ajuste.removidos.length && !ajuste.adicionados.length) delete storage.feriadosAjustes[ano];
+    else storage.feriadosAjustes[ano] = ajuste;
+    salvarStorage(storage);
+    _ajustesCache = null;
+    salvarDados();
+    gerarTabela();
+  }
+
+  function lerDataDoMes(texto, ano) {
+    const m = String(texto || '').trim().match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);
+    if (!m) return null;
+    const dia = parseInt(m[1]), mes = parseInt(m[2]) - 1;
+    if (m[3] && parseInt(m[3]) !== ano) return null;
+    const d = new Date(ano, mes, dia);
+    if (d.getMonth() !== mes || d.getDate() !== dia) return null;
+    return { dia, mes };
+  }
+
+  function removerFeriado(dia, mes) {
+    const ano = parseInt(selAno.value);
+    const ajuste = obterAjustesFeriados(ano);
+    const lista = obterFeriadosAno(ano);
+    const f = lista.find(x => x.dia === dia && x.mes === mes);
+    if (!confirm(`Desmarcar ${pad(dia)}/${pad(mes + 1)}/${ano} (${f ? f.desc : 'feriado'})?\n\nO dia volta a ser dia útil e poderá ser preenchido.`)) return;
+    ajuste.adicionados = ajuste.adicionados.filter(x => !(x.dia === dia && x.mes === mes));
+    // Se a data só existia como ajuste manual, basta tirar o ajuste
+    const original = obterFeriadosAnoSemAjustes(ano).some(x => x.dia === dia && x.mes === mes);
+    if (original && !ajuste.removidos.includes(chaveDia(dia, mes))) ajuste.removidos.push(chaveDia(dia, mes));
+    salvarAjustesFeriados(ano, ajuste);
+    mostrarToast(`✅ ${pad(dia)}/${pad(mes + 1)} agora é dia útil.`, 'success');
+  }
+
+  function obterFeriadosAnoSemAjustes(ano) {
+    obterAjustesFeriados(ano); // garante o cache carregado
+    const salvo = _ajustesCache;
+    _ajustesCache = { ...salvo, [ano]: { removidos: [], adicionados: [] } };
+    try { return obterFeriadosAno(ano); } finally { _ajustesCache = salvo; }
+  }
+
+  function restaurarFeriado(dia, mes) {
+    const ano = parseInt(selAno.value);
+    const ajuste = obterAjustesFeriados(ano);
+    ajuste.removidos = ajuste.removidos.filter(k => k !== chaveDia(dia, mes));
+    salvarAjustesFeriados(ano, ajuste);
+    mostrarToast(`↩️ Feriado de ${pad(dia)}/${pad(mes + 1)} restaurado.`, 'info');
+  }
+
+  function adicionarFeriadoManual(sugestaoData, sugestaoDesc) {
+    const ano = parseInt(selAno.value);
+    const mes = parseInt(selMes.value);
+    const texto = prompt(`Data do feriado/ponto facultativo (dd/mm) em ${ano}:`, sugestaoData || `${pad(1)}/${pad(mes + 1)}`);
+    if (texto === null) return false;
+    const data = lerDataDoMes(texto, ano);
+    if (!data) { mostrarToast('❌ Data inválida. Use o formato dd/mm.', 'error'); return false; }
+    const desc = prompt('Descrição:', sugestaoDesc || 'Ponto Facultativo');
+    if (desc === null) return false;
+    const facultativo = confirm('É ponto facultativo?\n\nOK = Ponto facultativo  |  Cancelar = Feriado');
+    const ajuste = obterAjustesFeriados(ano);
+    ajuste.removidos = ajuste.removidos.filter(k => k !== chaveDia(data.dia, data.mes));
+    ajuste.adicionados = ajuste.adicionados.filter(x => !(x.dia === data.dia && x.mes === data.mes));
+    ajuste.adicionados.push({ dia: data.dia, mes: data.mes, desc: desc.trim() || 'Feriado', facultativo });
+    salvarAjustesFeriados(ano, ajuste);
+    mostrarToast(`🎉 ${pad(data.dia)}/${pad(data.mes + 1)} marcado como ${facultativo ? 'ponto facultativo' : 'feriado'}.`, 'success');
+    return true;
+  }
+
+  function moverFeriado(dia, mes) {
+    const ano = parseInt(selAno.value);
+    const f = obterFeriadosAno(ano).find(x => x.dia === dia && x.mes === mes);
+    if (!f) return;
+    const texto = prompt(`Mover "${f.desc}" de ${pad(dia)}/${pad(mes + 1)} para qual data (dd/mm)?`, `${pad(dia)}/${pad(mes + 1)}`);
+    if (texto === null) return;
+    const nova = lerDataDoMes(texto, ano);
+    if (!nova) { mostrarToast('❌ Data inválida. Use o formato dd/mm.', 'error'); return; }
+    if (nova.dia === dia && nova.mes === mes) return;
+    const ajuste = obterAjustesFeriados(ano);
+    ajuste.adicionados = ajuste.adicionados.filter(x => !(x.dia === dia && x.mes === mes) && !(x.dia === nova.dia && x.mes === nova.mes));
+    const original = obterFeriadosAnoSemAjustes(ano).some(x => x.dia === dia && x.mes === mes);
+    if (original && !ajuste.removidos.includes(chaveDia(dia, mes))) ajuste.removidos.push(chaveDia(dia, mes));
+    ajuste.removidos = ajuste.removidos.filter(k => k !== chaveDia(nova.dia, nova.mes));
+    const descBase = f.desc.replace(/\s*\(transferido de [^)]*\)$/, '');
+    ajuste.adicionados.push({ dia: nova.dia, mes: nova.mes, desc: `${descBase} (transferido de ${pad(dia)}/${pad(mes + 1)})`, facultativo: !!f.facultativo });
+    salvarAjustesFeriados(ano, ajuste);
+    mostrarToast(`📅 Feriado movido para ${pad(nova.dia)}/${pad(nova.mes + 1)}.`, 'success');
   }
 
   function isFeriado(dia, mes, ano) {
@@ -1322,27 +1496,40 @@
       wrapper.parentNode.insertBefore(feriadosDiv, wrapper);
     }
 
-    if (feriadosDoMes.length > 0) {
-      feriadosDiv.innerHTML = `
-        <h3>🎉 Feriados de ${meses[mes]} ${ano}</h3>
-        <div class="feriados-lista">
-          ${feriadosDoMes.map(f => {
-            const dataStr = `${pad(f.dia)}/${pad(mes + 1)}`;
-            let desc = f.desc;
-            if (f.tipo) desc += ' (' + f.tipo + ')';
-            if (f.facultativo) desc += ' ⏰';
-            return `<div class="feriado-item"><span class="feriado-data">${dataStr}</span><span class="feriado-desc">${desc}</span></div>`;
-          }).join('')}
-        </div>
-      `;
-      feriadosDiv.style.display = 'block';
-    } else {
-      feriadosDiv.innerHTML = `
-        <h3>📅 ${meses[mes]} ${ano}</h3>
-        <p class="sem-feriados">✅ Nenhum feriado neste mês</p>
-      `;
-      feriadosDiv.style.display = 'block';
-    }
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const desmarcados = obterFeriadosOriginaisMes(mes, ano);
+
+    const itens = feriadosDoMes.map(f => {
+      const dataStr = `${pad(f.dia)}/${pad(mes + 1)}`;
+      let desc = esc(f.desc);
+      if (f.tipo) desc += ' (' + esc(f.tipo) + ')';
+      if (f.facultativo) desc += ' ⏰';
+      return `<div class="feriado-item${f.manual ? ' manual' : ''}">
+          <span class="feriado-data">${dataStr}</span><span class="feriado-desc">${desc}</span>
+          <span class="feriado-acoes">
+            <button type="button" class="feriado-btn" onclick="moverFeriado(${f.dia}, ${f.mes})" title="Transferir para outra data">📅 Mover</button>
+            <button type="button" class="feriado-btn" onclick="removerFeriado(${f.dia}, ${f.mes})" title="Tornar dia útil (liberar para preenchimento)">✖ Não é feriado</button>
+          </span>
+        </div>`;
+    });
+    desmarcados.forEach(f => {
+      itens.push(`<div class="feriado-item desmarcado">
+          <span class="feriado-data">${pad(f.dia)}/${pad(mes + 1)}</span><span class="feriado-desc"><s>${esc(f.desc)}</s> — dia útil</span>
+          <span class="feriado-acoes">
+            <button type="button" class="feriado-btn" onclick="restaurarFeriado(${f.dia}, ${f.mes})" title="Voltar a considerar feriado">↩ Restaurar</button>
+          </span>
+        </div>`);
+    });
+
+    feriadosDiv.innerHTML = `
+      <h3>${itens.length ? '🎉 Feriados de' : '📅'} ${meses[mes]} ${ano}</h3>
+      ${itens.length ? `<div class="feriados-lista">${itens.join('')}</div>` : '<p class="sem-feriados">✅ Nenhum feriado neste mês</p>'}
+      <div class="feriados-rodape">
+        <button type="button" class="feriado-btn" onclick="adicionarFeriadoManual()" title="Marcar uma data como feriado ou ponto facultativo">＋ Adicionar feriado / ponto facultativo</button>
+        <small>Feriado alterado pelo Governo Federal ou pela UFRA? Use <strong>Mover</strong> ou <strong>Não é feriado</strong>. Os ajustes ficam salvos neste navegador e vão junto no 💾 Salvar.</small>
+      </div>
+    `;
+    feriadosDiv.style.display = 'block';
   }
 
   // ===================== RECALCULAR LINHA =====================
@@ -1521,123 +1708,93 @@
     `;
   }
 
-  // ===================== EXPORTAR CSV =====================
-
-  function exportarCSV() {
-    const mes = parseInt(document.getElementById('selMes').value);
-    const ano = parseInt(document.getElementById('selAno').value);
-    const linhas = document.querySelectorAll('#corpo tr');
-
-    let csv = `# Escala UFRA\n`;
-    csv += `# Universidade Federal Rural da Amazônia - Campus Belém\n`;
-    const nomeServ = document.getElementById('nomeServidor').value.trim();
-    const siapeServ = document.getElementById('siapeServidor').value.trim();
-    const unidadeServ = document.getElementById('codUnidade').value.trim();
-    if (nomeServ) csv += `# Servidor(a): ${nomeServ}\n`;
-    if (siapeServ) csv += `# SIAPE: ${siapeServ}\n`;
-    if (unidadeServ) csv += `# Unidade: ${unidadeServ}\n`;
-    csv += `# Período: ${meses[mes]} ${ano}\n`;
-    csv += `# Gerado em: ${new Date().toLocaleString('pt-BR')}\n`;
-    csv += `# Calendário Administrativo Oficial UFRA\n\n`;
-
-    csv += 'Data,Dia da Semana,Tipo Dia,Entrada,Saída,Horas Trabalhadas,Carga Esperada,Diferença,Modalidade,Observações\n';
-
-    linhas.forEach(tr => {
-      const dia = parseInt(tr.dataset.dia);
-      const data = tr.querySelector('.col-data').textContent;
-      const diaNome = tr.querySelector('.col-diasem').textContent;
-      const entrada = tr.querySelector('.entrada')?.value || '';
-      const saida = tr.querySelector('.saida')?.value || '';
-      const trab = tr.querySelector('.trab-cell').textContent;
-      const carga = tr.querySelector('.col-calc').textContent;
-      const diff = tr.querySelector('.diff-cell').textContent;
-      const modal = tr.querySelector('.modal-sel')?.value || '';
-      const obs = tr.querySelector('.obs-input')?.value || '';
-
-      let tipoDia = 'Administrativo';
-      if (tr.classList.contains('fds')) tipoDia = 'Fim de Semana';
-      else if (tr.classList.contains('feriado')) tipoDia = 'Feriado';
-
-      csv += `"${data}","${diaNome}","${tipoDia}","${entrada}","${saida}","${trab}","${carga}","${diff}","${modal}","${obs}"\n`;
-    });
-
-    const resumoCards = document.querySelectorAll('.card');
-    csv += '\n# RESUMO DO MÊS\n';
-    resumoCards.forEach(card => {
-      const label = card.querySelector('.label').textContent;
-      const valor = card.querySelector('.valor').textContent.replace(/\n/g, ' ');
-      csv += `# ${label}: ${valor}\n`;
-    });
-
-    const diasPresencial = [];
-    const diasRemoto = [];
-    const diasHibrido = [];
-    const diasMedico = [];
-    const diasFerias = [];
-    const diasLicenca = [];
-    linhas.forEach(tr => {
-      const dia = parseInt(tr.dataset.dia);
-      if (!isDiaAdministrativo(dia, mes, ano)) return;
-      const entrada = tr.querySelector('.entrada')?.value;
-      const saida = tr.querySelector('.saida')?.value;
-      const modal = tr.querySelector('.modal-sel')?.value;
-      if (entrada && saida && modal) {
-        const validacao = validarHorarios(entrada, saida);
-        if (validacao.valido) {
-          if (modal === 'Presencial') diasPresencial.push(dia);
-          else if (modal === 'Remoto') diasRemoto.push(dia);
-          else if (modal === 'Hibrido') diasHibrido.push(dia);
-          else if (modal === 'Medico') diasMedico.push(dia);
-          else if (modal === 'Ferias') diasFerias.push(dia);
-          else if (modal === 'Licenca') diasLicenca.push(dia);
-        }
-      }
-    });
-
-    csv += '\n# DIAS POR MODALIDADE (para SIGEPE)\n';
-    csv += `Presenciais: ${diasPresencial.map(d => pad(d)).join(', ')}\n`;
-    csv += `Remotos: ${diasRemoto.map(d => pad(d)).join(', ')}\n`;
-    if (diasHibrido.length > 0) csv += `Híbridos: ${diasHibrido.map(d => pad(d)).join(', ')}\n`;
-    if (diasMedico.length > 0) csv += `Médicos/Consulta: ${diasMedico.map(d => pad(d)).join(', ')}\n`;
-    if (diasFerias.length > 0) csv += `Férias: ${diasFerias.map(d => pad(d)).join(', ')}\n`;
-    if (diasLicenca.length > 0) csv += `Licenças: ${diasLicenca.map(d => pad(d)).join(', ')}\n`;
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Escala_UFRA_${meses[mes]}_${ano}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    mostrarToast('📊 Relatório CSV exportado com sucesso!', 'success');
-  }
-
-  // ===================== EXPORTAR SIGEPE (OCORRÊNCIAS) =====================
+  // ===================== EXPORTAR PLANILHA (XLSX, 2 ABAS) =====================
   //
-  //  Layout da aba de ocorrências do SIGEPE (colunas A..F):
-  //    A: código da unidade | B: SIAPE | C: código da ocorrência | D,E: vazias | F: data
-  //  Códigos: 1005 = deslocamento (presencial) | 1002 = remoto.
-  //  Só entram dias administrativos (sem sábado, domingo, feriado/ponto facultativo)
-  //  com horários válidos e modalidade Presencial ou Remoto. Observações não vão no arquivo.
+  //  Gera UM único arquivo .xlsx com duas abas:
+  //    • "Escala"  — relatório completo do mês (identificação, dias, resumo e
+  //                  dias por modalidade).
+  //    • "SIGEPE"  — ocorrências no layout de importação do SIGEPE (colunas A..F):
+  //        A: código da unidade | B: SIAPE | C: código da ocorrência | D,E: vazias | F: data
+  //      Códigos: 1005 = deslocamento (presencial) | 1002 = remoto.
+  //      Só entram dias administrativos (sem sábado, domingo, feriado/ponto facultativo)
+  //      com horários válidos e modalidade Presencial ou Remoto. Observações não entram.
+  //
+  //  O .xlsx é montado aqui mesmo (sem bibliotecas externas): é um ZIP de XMLs.
 
   const OCORRENCIA_SIGEPE = { Presencial: '1005', Remoto: '1002' };
 
-  function exportarSIGEPE() {
-    const mes = parseInt(document.getElementById('selMes').value);
-    const ano = parseInt(document.getElementById('selAno').value);
+  function montarAbaEscala(mes, ano) {
+    const linhas = document.querySelectorAll('#corpo tr');
+    const rows = [];
+    const negrito = [];
+    const titulo = t => { negrito.push(rows.length); rows.push([t]); };
+
+    titulo('Escala UFRA');
+    rows.push(['Universidade Federal Rural da Amazônia - Campus Belém']);
+    const nomeServ = document.getElementById('nomeServidor').value.trim();
+    const siapeServ = document.getElementById('siapeServidor').value.trim();
+    const unidadeServ = document.getElementById('codUnidade').value.trim();
+    if (nomeServ) rows.push(['Servidor(a):', nomeServ]);
+    if (siapeServ) rows.push(['SIAPE:', siapeServ]);
+    if (unidadeServ) rows.push(['Unidade:', unidadeServ]);
+    rows.push(['Período:', `${meses[mes]} ${ano}`]);
+    rows.push(['Gerado em:', new Date().toLocaleString('pt-BR')]);
+    rows.push([]);
+
+    negrito.push(rows.length);
+    rows.push(['Data', 'Dia da Semana', 'Tipo Dia', 'Entrada', 'Saída', 'Horas Trabalhadas', 'Carga Esperada', 'Diferença', 'Modalidade', 'Observações']);
+
+    const porModalidade = { Presencial: [], Remoto: [], Hibrido: [], Medico: [], Ferias: [], Licenca: [] };
+    linhas.forEach(tr => {
+      const dia = parseInt(tr.dataset.dia);
+      const entrada = tr.querySelector('.entrada')?.value || '';
+      const saida = tr.querySelector('.saida')?.value || '';
+      const modal = tr.querySelector('.modal-sel')?.value || '';
+      let tipoDia = 'Administrativo';
+      if (tr.classList.contains('fds')) tipoDia = 'Fim de Semana';
+      else if (tr.classList.contains('feriado')) tipoDia = 'Feriado — ' + getDescricaoFeriado(dia, mes, ano).replace(' ⏰', ' (ponto facultativo)');
+      const adm = isDiaAdministrativo(dia, mes, ano);
+      rows.push([
+        tr.querySelector('.col-data').textContent,
+        dias[new Date(ano, mes, dia).getDay()],
+        tipoDia,
+        adm ? entrada : '',
+        adm ? saida : '',
+        tr.querySelector('.trab-cell').textContent,
+        tr.querySelectorAll('.col-calc')[1]?.textContent || '',
+        tr.querySelector('.diff-cell').textContent,
+        (adm && modal) ? (tr.querySelector('.modal-sel').selectedOptions[0]?.textContent.replace(/^\S+\s/, '') || '') : '',
+        tr.querySelector('.obs-input')?.value || ''
+      ]);
+      if (adm && entrada && saida && porModalidade[modal] && validarHorarios(entrada, saida).valido) {
+        porModalidade[modal].push(dia);
+      }
+    });
+
+    rows.push([]);
+    titulo('RESUMO DO MÊS');
+    document.querySelectorAll('#resumo .card').forEach(card => {
+      const label = card.querySelector('.label')?.textContent.replace(/^\S+\s/, '').trim();
+      const valorEl = card.querySelector('.valor');
+      const valor = valorEl ? valorEl.innerHTML.replace(/<br\s*\/?>/gi, ' — ').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim() : '';
+      if (label) rows.push([label, valor]);
+    });
+
+    rows.push([]);
+    titulo('DIAS POR MODALIDADE');
+    const nomes = { Presencial: 'Presenciais', Remoto: 'Remotos', Hibrido: 'Híbridos', Medico: 'Médicos/Consulta', Ferias: 'Férias', Licenca: 'Licenças' };
+    Object.keys(nomes).forEach(k => {
+      if (k === 'Presencial' || k === 'Remoto' || porModalidade[k].length) {
+        rows.push([nomes[k] + ':', porModalidade[k].map(d => pad(d)).join(', ')]);
+      }
+    });
+
+    return { nome: 'Escala', rows, negrito, larguras: [14, 16, 34, 10, 10, 17, 15, 12, 18, 40] };
+  }
+
+  function montarAbaSIGEPE(mes, ano) {
     const siape = document.getElementById('siapeServidor').value.replace(/\D/g, '');
     const unidade = document.getElementById('codUnidade').value.replace(/\D/g, '');
-    const nome = document.getElementById('nomeServidor').value.trim();
-
-    if (!siape) {
-      mostrarToast('⚠️ Informe o SIAPE do servidor antes de exportar para o SIGEPE.', 'error');
-      document.getElementById('siapeServidor').focus();
-      return;
-    }
-
     const registros = [];
     let semModalidade = 0;
     document.querySelectorAll('#corpo tr').forEach(tr => {
@@ -1650,27 +1807,163 @@
       if (!codigo) { semModalidade++; return; }
       registros.push([unidade, siape, codigo, '', '', `${pad(dia)}/${pad(mes + 1)}/${ano}`]);
     });
+    const rows = [['', 'SIAPE', 'CÓDIGO DA OCORRÊNCIA', '', '', 'DIAS'], ...(siape ? registros : [])];
+    return { nome: 'SIGEPE', rows, negrito: [0], larguras: [12, 12, 24, 6, 6, 14], total: siape ? registros.length : 0, semModalidade, temSiape: !!siape };
+  }
 
-    if (registros.length === 0) {
-      mostrarToast('⚠️ Nenhum dia Presencial/Remoto preenchido neste mês.', 'error');
-      return;
+  // ---- Gerador mínimo de XLSX (ZIP sem compressão + SpreadsheetML) ----
+
+  const _crcTabela = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
     }
+    return t;
+  })();
 
-    const linhas = [['', 'SIAPE', 'CÓDIGO DA OCORRÊNCIA', '', '', 'DIAS'], ...registros];
-    const csv = '\uFEFF' + linhas.map(l => l.join(';')).join('\r\n') + '\r\n';
+  function crc32(bytes) {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) c = _crcTabela[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
 
-    const sufixo = nome ? '_' + nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') : '';
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  function criarZip(arquivos) {
+    const enc = new TextEncoder();
+    const partes = [], central = [];
+    let offset = 0;
+    arquivos.forEach(({ nome, conteudo }) => {
+      const nomeB = enc.encode(nome);
+      const dados = enc.encode(conteudo);
+      const crc = crc32(dados);
+      const local = new DataView(new ArrayBuffer(30));
+      local.setUint32(0, 0x04034b50, true);
+      local.setUint16(4, 20, true);
+      local.setUint16(6, 0x0800, true); // nomes em UTF-8
+      local.setUint16(8, 0, true);      // sem compressão
+      local.setUint32(14, crc, true);
+      local.setUint32(18, dados.length, true);
+      local.setUint32(22, dados.length, true);
+      local.setUint16(26, nomeB.length, true);
+      partes.push(new Uint8Array(local.buffer), nomeB, dados);
+
+      const cen = new DataView(new ArrayBuffer(46));
+      cen.setUint32(0, 0x02014b50, true);
+      cen.setUint16(4, 20, true);
+      cen.setUint16(6, 20, true);
+      cen.setUint16(8, 0x0800, true);
+      cen.setUint32(16, crc, true);
+      cen.setUint32(20, dados.length, true);
+      cen.setUint32(24, dados.length, true);
+      cen.setUint16(28, nomeB.length, true);
+      cen.setUint32(42, offset, true);
+      central.push(new Uint8Array(cen.buffer), nomeB);
+      offset += 30 + nomeB.length + dados.length;
+    });
+    const tamCentral = central.reduce((s, p) => s + p.length, 0);
+    const fim = new DataView(new ArrayBuffer(22));
+    fim.setUint32(0, 0x06054b50, true);
+    fim.setUint16(8, arquivos.length, true);
+    fim.setUint16(10, arquivos.length, true);
+    fim.setUint32(12, tamCentral, true);
+    fim.setUint32(16, offset, true);
+    return new Blob([...partes, ...central, new Uint8Array(fim.buffer)],
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  function xmlEsc(t) {
+    return String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  }
+
+  function colLetra(i) {
+    let s = '';
+    for (i++; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s;
+    return s;
+  }
+
+  function xmlAba(aba) {
+    const cols = aba.larguras.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('');
+    const linhas = aba.rows.map((r, ri) => {
+      const estilo = aba.negrito.includes(ri) ? ' s="1"' : '';
+      const celulas = r.map((v, ci) => (v === '' || v === undefined || v === null) ? ''
+        : `<c r="${colLetra(ci)}${ri + 1}" t="inlineStr"${estilo}><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`).join('');
+      return `<row r="${ri + 1}">${celulas}</row>`;
+    }).join('');
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      `<cols>${cols}</cols><sheetData>${linhas}</sheetData></worksheet>`;
+  }
+
+  function gerarXLSX(abas) {
+    const cab = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+    const arquivos = [
+      { nome: '[Content_Types].xml', conteudo: cab +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/>' +
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+        abas.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') +
+        '</Types>' },
+      { nome: '_rels/.rels', conteudo: cab +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+        '</Relationships>' },
+      { nome: 'xl/workbook.xml', conteudo: cab +
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+        abas.map((a, i) => `<sheet name="${xmlEsc(a.nome)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') +
+        '</sheets></workbook>' },
+      { nome: 'xl/_rels/workbook.xml.rels', conteudo: cab +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        abas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') +
+        `<Relationship Id="rId${abas.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
+        '</Relationships>' },
+      { nome: 'xl/styles.xml', conteudo: cab +
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+        '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
+        '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>' +
+        '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+        '</styleSheet>' },
+      ...abas.map((a, i) => ({ nome: `xl/worksheets/sheet${i + 1}.xml`, conteudo: xmlAba(a) }))
+    ];
+    return criarZip(arquivos);
+  }
+
+  function baixarBlob(blob, nomeArquivo) {
     const link = document.createElement('a');
-    link.setAttribute('href', URL.createObjectURL(blob));
-    link.setAttribute('download', `SIGEPE_Ocorrencias${sufixo}_${meses[mes]}_${ano}.csv`);
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', nomeArquivo);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
-    let msg = `📤 Planilha SIGEPE exportada: ${registros.length} dia(s).`;
-    if (semModalidade) msg += ` ${semModalidade} dia(s) sem modalidade ficaram de fora.`;
+  function exportarPlanilha() {
+    const mes = parseInt(document.getElementById('selMes').value);
+    const ano = parseInt(document.getElementById('selAno').value);
+    const nome = document.getElementById('nomeServidor').value.trim();
+
+    const abaEscala = montarAbaEscala(mes, ano);
+    const abaSigepe = montarAbaSIGEPE(mes, ano);
+
+    const sufixo = nome ? '_' + nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') : '';
+    baixarBlob(gerarXLSX([abaEscala, abaSigepe]), `Escala_UFRA${sufixo}_${meses[mes]}_${ano}.xlsx`);
+
+    if (!abaSigepe.temSiape) {
+      mostrarToast('📊 Planilha exportada. ⚠️ Aba SIGEPE vazia: informe o SIAPE do servidor.', 'error');
+      document.getElementById('siapeServidor').focus();
+      return;
+    }
+    let msg = `📊 Planilha exportada (abas Escala + SIGEPE: ${abaSigepe.total} dia(s)).`;
+    if (abaSigepe.semModalidade) msg += ` ${abaSigepe.semModalidade} dia(s) sem modalidade ficaram fora do SIGEPE.`;
     mostrarToast(msg, 'success');
   }
 
@@ -1700,7 +1993,7 @@
     const diasLicenca = [];
 
     const dados = {
-      versao: '2.2',
+      versao: '2.3',
       mes: selMes.value,
       ano: selAno.value,
       carga: document.getElementById('selCarga').value,
@@ -1711,6 +2004,7 @@
       siape: document.getElementById('siapeServidor').value,
       codUnidade: document.getElementById('codUnidade').value,
       linhas: [],
+      feriadosAjustes: obterAjustesFeriados(ano),
       dataExportacao: new Date().toISOString()
     };
 
@@ -1809,7 +2103,18 @@
           codUnidade: dados.codUnidade || ''
         };
         storage.meses[chaveMes(dados.mes, dados.ano)] = { linhas: dados.linhas };
+        const aj = dados.feriadosAjustes;
+        if (aj && Array.isArray(aj.removidos) && Array.isArray(aj.adicionados)) {
+          storage.feriadosAjustes = storage.feriadosAjustes || {};
+          storage.feriadosAjustes[parseInt(dados.ano)] = {
+            removidos: aj.removidos.map(String),
+            adicionados: aj.adicionados
+              .filter(f => Number.isInteger(f.dia) && Number.isInteger(f.mes))
+              .map(f => ({ dia: f.dia, mes: f.mes, desc: String(f.desc || 'Feriado'), facultativo: !!f.facultativo }))
+          };
+        }
         salvarStorage(storage);
+        _ajustesCache = null;
         gerarTabela();
 
         mostrarToast('✅ Planilha carregada com sucesso!', 'success');
@@ -1831,14 +2136,9 @@
       gerarTabela();
       mostrarToast('🔄 Tabela regenerada', 'info');
     }
-    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'e') {
+    if (event.ctrlKey && event.key.toLowerCase() === 'e') {
       event.preventDefault();
-      exportarSIGEPE();
-      return;
-    }
-    if (event.ctrlKey && event.key === 'e') {
-      event.preventDefault();
-      exportarCSV();
+      exportarPlanilha();
     }
     if (event.ctrlKey && event.key === 's') {
       event.preventDefault();

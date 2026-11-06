@@ -82,7 +82,19 @@ const CALENDARIO_UFRA_EXTRAS = {
 | Recesso administrativo da UFRA | `CALENDARIO_UFRA_EXTRAS[ano]` |
 | Datas comemorativas específicas da UFRA | `CALENDARIO_UFRA_EXTRAS[ano]` |
 | Feriados que caem em FDS (se a UFRA antecipar/postergar) | `CALENDARIO_UFRA_EXTRAS[ano]` |
+| Feriado/ponto facultativo transferido pelo Governo Federal | Data antiga em `FERIADOS_REMOVIDOS[ano]` + nova data em `CALENDARIO_UFRA_EXTRAS[ano]` |
 | `ANO_ATUALIZACAO` | Constante no início do script |
+
+### Ajustar feriados direto no app (sem mexer no código)
+
+Quando um feriado muda de data (ex.: Dia do Servidor 2026, transferido de 28/10 para 30/10), o próprio servidor pode corrigir no quadro **"Feriados do mês"**:
+
+- **📅 Mover** — transfere o feriado para outra data (dd/mm).
+- **✖ Não é feriado** — libera o dia para preenchimento normal.
+- **↩ Restaurar** — desfaz a remoção de um feriado.
+- **＋ Adicionar feriado / ponto facultativo** — marca qualquer data do ano.
+
+Os ajustes ficam salvos no navegador (por ano) e também vão no arquivo JSON do **💾 Salvar**/**📂 Abrir**.
 
 ---
 
@@ -134,7 +146,7 @@ const CALENDARIO_UFRA_EXTRAS = {
 
 ### ✅ Persistência
 - Salvamento automático no navegador (localStorage)
-- Exportar para CSV com cabeçalho informativo e resumo completo
+- Exportar **uma única planilha Excel (.xlsx)** com duas abas: **Escala** (relatório completo do mês) e **SIGEPE** (ocorrências no layout de importação)
 - Salvar planilha como arquivo JSON (com versão e data)
 - Carregar planilha a partir de arquivo JSON
 
@@ -142,7 +154,7 @@ const CALENDARIO_UFRA_EXTRAS = {
 - Navegação entre meses com botões ◀ ▶
 - Atalhos de teclado:
   - `Ctrl+G` — Gerar tabela
-  - `Ctrl+E` — Exportar CSV
+  - `Ctrl+E` — Exportar planilha (.xlsx com abas Escala e SIGEPE)
   - `Ctrl+S` — Salvar planilha (JSON)
   - `Ctrl+O` — Abrir/carregar planilha
   - `Ctrl+L` — Limpar dados
@@ -224,7 +236,7 @@ Em relação às versões anteriores, foram implementadas:
 5. Ajuste horários de entrada/saída por dia conforme necessário
 6. Selecione a modalidade de trabalho (Presencial/Remoto/Híbrido)
 7. Acompanhe os totais nos cards de resumo
-8. Exporte para CSV ou salve como JSON ao final
+8. Exporte a planilha (.xlsx com abas Escala e SIGEPE) ou salve como JSON ao final
 
 ---
 
@@ -247,7 +259,7 @@ PERSISTÊNCIA                ← localStorage + JSON
 GERAR TABELA                ← montagem da tabela HTML
 FERIADOS DO MÊS             ← exibição dinâmica
 RESUMO                      ← cards de totais
-EXPORTAR CSV                ← geração de relatório
+EXPORTAR PLANILHA (XLSX)    ← um arquivo, abas Escala + SIGEPE
 ATALHOS DE TECLADO          ← Ctrl+G/E/S/O/L
 ```
 
