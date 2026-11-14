@@ -146,7 +146,7 @@ Os ajustes ficam salvos no navegador (por ano) e também vão no arquivo JSON do
 
 ### ✅ Persistência
 - Salvamento automático no navegador (localStorage)
-- Exportar **uma única planilha Excel (.xlsx), com uma aba só**, pronta para o SIGEPE: colunas A..F com as ocorrências (unidade, SIAPE, código 1005/1002, data) e, ao lado (colunas H..I), o quadro **DIAS POR MODALIDADE** (Presenciais / Remotos)
+- Exportar **um arquivo .csv pronto para o "Envio de Arquivo" (lote) do SIGEPE**, no formato do modelo oficial (ver seção v2.3)
 - Salvar planilha como arquivo JSON (com versão e data)
 - Carregar planilha a partir de arquivo JSON
 
@@ -154,7 +154,7 @@ Os ajustes ficam salvos no navegador (por ano) e também vão no arquivo JSON do
 - Navegação entre meses com botões ◀ ▶
 - Atalhos de teclado:
   - `Ctrl+G` — Gerar tabela
-  - `Ctrl+E` — Exportar planilha do SIGEPE (.xlsx)
+  - `Ctrl+E` — Exportar CSV do SIGEPE
   - `Ctrl+S` — Salvar planilha (JSON)
   - `Ctrl+O` — Abrir/carregar planilha
   - `Ctrl+L` — Limpar dados
@@ -236,10 +236,14 @@ Em relação às versões anteriores, foram implementadas:
 
 ### 2. Exportação única para o SIGEPE
 - **Antes**: dois botões (Exportar CSV e SIGEPE CSV) geravam dois arquivos separados.
-- **Agora**: um único botão **📊 Exportar** (`Ctrl+E`) gera **um arquivo .xlsx com uma aba só**:
-  - Colunas **A..F**: ocorrências no layout do SIGEPE (unidade, SIAPE, código 1005/1002, data).
-  - Colunas **H..I**: quadro **DIAS POR MODALIDADE** (Presenciais / Remotos) para conferência.
-- SIAPE, unidade e código saem como número (sem o aviso "número armazenado como texto" do Excel); a planilha é gerada sem bibliotecas externas.
+- **Agora**: um único botão **📊 Exportar** (`Ctrl+E`) gera **um arquivo .csv** igual ao modelo de envio em lote do SIGEPE (`MODELO_OCORRENCIA`):
+  - separador `;`, **sem cabeçalho**, uma linha por dia, quebra de linha CRLF, sem BOM;
+  - 10 colunas: `Órgão;Matrícula;Tipo Ocorrência;Diploma Legal;Número;Data Pub.;Efeito Fin.;Qtd Horas;Data Início;Data Fim`
+  - colunas 4, 5, 6 e 8 ficam vazias; Efeito Financeiro é sempre `SIM`; Data Início = Data Fim (o dia).
+  - Exemplo: `26253;1049127;1005;;;;SIM;;01/10/2026;01/10/2026`
+  - Códigos: `1005` = presencial (deslocamento) | `1002` = remoto.
+- SIAPE e código da Unidade/Órgão são obrigatórios para exportar.
+- Histórico: houve versões intermediárias em .xlsx (2 abas, depois 1 aba); foram substituídas pelo CSV porque o SIGEPE só aceita o lote em .csv.
 
 ---
 
@@ -252,7 +256,7 @@ Em relação às versões anteriores, foram implementadas:
 5. Ajuste horários de entrada/saída por dia conforme necessário
 6. Selecione a modalidade de trabalho (Presencial/Remoto/Híbrido)
 7. Acompanhe os totais nos cards de resumo
-8. Exporte a planilha do SIGEPE (.xlsx) ou salve como JSON ao final
+8. Exporte o CSV do SIGEPE ou salve como JSON ao final
 
 ---
 
@@ -275,7 +279,7 @@ PERSISTÊNCIA                ← localStorage + JSON
 GERAR TABELA                ← montagem da tabela HTML
 FERIADOS DO MÊS             ← exibição dinâmica
 RESUMO                      ← cards de totais
-EXPORTAR PLANILHA (XLSX)    ← um arquivo, uma aba (SIGEPE + dias por modalidade)
+EXPORTAR CSV SIGEPE         ← lote de ocorrências no formato do SIGEPE
 ATALHOS DE TECLADO          ← Ctrl+G/E/S/O/L
 ```
 

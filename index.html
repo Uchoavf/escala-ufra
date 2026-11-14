@@ -681,7 +681,7 @@
       <button class="btn btn-primary" onclick="gerarTabela()" title="Gerar/Atualizar tabela do mês (Ctrl+G)">
         🔄 Gerar
       </button>
-      <button class="btn btn-success" onclick="exportarPlanilha()" title="Exportar planilha do SIGEPE em Excel (Ctrl+E)">
+      <button class="btn btn-success" onclick="exportarPlanilha()" title="Exportar CSV de ocorrências para o SIGEPE (Ctrl+E)">
         📊 Exportar
       </button>
       <button class="btn btn-info" onclick="salvarPlanilha()" title="Salvar JSON (Ctrl+S)">
@@ -1708,29 +1708,24 @@
     `;
   }
 
-  // ===================== EXPORTAR PLANILHA SIGEPE (XLSX, 1 ABA) =====================
+  // ===================== EXPORTAR CSV DO SIGEPE (ENVIO EM LOTE) =====================
   //
-  //  Gera UM arquivo .xlsx com UMA aba ("SIGEPE"), só com o que entra no SIGEPE:
-  //    • Colunas A..F — ocorrências no layout de importação do SIGEPE:
-  //        A: código da unidade | B: SIAPE | C: código da ocorrência | D,E: vazias | F: data
-  //      Códigos: 1005 = deslocamento (presencial) | 1002 = remoto.
-  //      Só entram dias administrativos (sem sábado, domingo, feriado/ponto facultativo)
-  //      com horários válidos e modalidade Presencial ou Remoto. Observações não entram.
-  //    • Colunas H..I — quadro "DIAS POR MODALIDADE" (Presenciais / Remotos), para conferência.
-  //
-  //  O .xlsx é montado aqui mesmo (sem bibliotecas externas): é um ZIP de XMLs.
+  //  Gera o arquivo .csv aceito pelo SIGEPE no "Envio de Arquivo" (lote de ocorrências).
+  //  Formato (igual ao MODELO_OCORRENCIA do SIGEPE):
+  //    • separador ";", SEM linha de cabeçalho, quebra de linha CRLF, sem BOM;
+  //    • 10 colunas por linha:
+  //        1. Órgão (código da unidade)   2. Matrícula (SIAPE)   3. Tipo de ocorrência
+  //        4. Diploma legal (vazio)       5. Número (vazio)      6. Data de publicação (vazio)
+  //        7. Efeito financeiro = SIM     8. Qtd. horas (vazio)  9. Data início   10. Data fim
+  //    Ex.: 26253;1049127;1005;;;;SIM;;01/10/2026;01/10/2026
+  //  Códigos: 1005 = deslocamento (presencial) | 1002 = remoto.
+  //  Só entram dias administrativos (sem sábado, domingo, feriado/ponto facultativo)
+  //  com horários válidos e modalidade Presencial ou Remoto. Uma linha por dia.
 
   const OCORRENCIA_SIGEPE = { Presencial: '1005', Remoto: '1002' };
 
-  // Número sem zero à esquerda vira célula numérica (evita o aviso "número
-  // armazenado como texto" no Excel); com zero à esquerda fica como texto.
-  const numOuTexto = v => (/^[1-9]\d{0,14}$/.test(v) ? { v, n: true } : v);
-
-  function montarAbaSIGEPE(mes, ano) {
-    const siape = document.getElementById('siapeServidor').value.replace(/\D/g, '');
-    const unidade = document.getElementById('codUnidade').value.replace(/\D/g, '');
-    const registros = [];
-    const diasPorModalidade = { Presencial: [], Remoto: [] };
+  function montarLinhasSIGEPE(mes, ano, orgao, siape) {
+    const linhas = [];
     let semModalidade = 0;
     document.querySelectorAll('#corpo tr').forEach(tr => {
       const dia = parseInt(tr.dataset.dia);
@@ -1738,158 +1733,12 @@
       const entrada = tr.querySelector('.entrada')?.value;
       const saida = tr.querySelector('.saida')?.value;
       if (!entrada || !saida || !validarHorarios(entrada, saida).valido) return;
-      const modal = tr.querySelector('.modal-sel')?.value;
-      const codigo = OCORRENCIA_SIGEPE[modal];
+      const codigo = OCORRENCIA_SIGEPE[tr.querySelector('.modal-sel')?.value];
       if (!codigo) { semModalidade++; return; }
-      diasPorModalidade[modal].push(dia);
-      registros.push([numOuTexto(unidade), numOuTexto(siape), numOuTexto(codigo), '', '', `${pad(dia)}/${pad(mes + 1)}/${ano}`]);
+      const data = `${pad(dia)}/${pad(mes + 1)}/${ano}`;
+      linhas.push([orgao, siape, codigo, '', '', '', 'SIM', '', data, data].join(';'));
     });
-
-    const negrito = t => ({ v: t, b: true });
-    const rows = [['', negrito('SIAPE'), negrito('CÓDIGO DA OCORRÊNCIA'), '', '', negrito('DIAS')], ...(siape ? registros : [])];
-
-    // Quadro de conferência ao lado (colunas H e I), começando na linha 2
-    const quadro = [
-      [negrito('DIAS POR MODALIDADE')],
-      [negrito('Presenciais:'), diasPorModalidade.Presencial.map(d => pad(d)).join(', ')],
-      [negrito('Remotos:'), diasPorModalidade.Remoto.map(d => pad(d)).join(', ')]
-    ];
-    quadro.forEach((linha, i) => {
-      const r = rows[i + 1] || (rows[i + 1] = ['', '', '', '', '', '']);
-      while (r.length < 7) r.push('');
-      r.push(...linha);
-    });
-
-    return { nome: 'SIGEPE', rows, larguras: [12, 12, 24, 6, 6, 14, 4, 14, 40], total: siape ? registros.length : 0, semModalidade, temSiape: !!siape };
-  }
-
-  // ---- Gerador mínimo de XLSX (ZIP sem compressão + SpreadsheetML) ----
-
-  const _crcTabela = (() => {
-    const t = new Uint32Array(256);
-    for (let n = 0; n < 256; n++) {
-      let c = n;
-      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-      t[n] = c >>> 0;
-    }
-    return t;
-  })();
-
-  function crc32(bytes) {
-    let c = 0xFFFFFFFF;
-    for (let i = 0; i < bytes.length; i++) c = _crcTabela[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
-    return (c ^ 0xFFFFFFFF) >>> 0;
-  }
-
-  function criarZip(arquivos) {
-    const enc = new TextEncoder();
-    const partes = [], central = [];
-    let offset = 0;
-    arquivos.forEach(({ nome, conteudo }) => {
-      const nomeB = enc.encode(nome);
-      const dados = enc.encode(conteudo);
-      const crc = crc32(dados);
-      const local = new DataView(new ArrayBuffer(30));
-      local.setUint32(0, 0x04034b50, true);
-      local.setUint16(4, 20, true);
-      local.setUint16(6, 0x0800, true); // nomes em UTF-8
-      local.setUint16(8, 0, true);      // sem compressão
-      local.setUint32(14, crc, true);
-      local.setUint32(18, dados.length, true);
-      local.setUint32(22, dados.length, true);
-      local.setUint16(26, nomeB.length, true);
-      partes.push(new Uint8Array(local.buffer), nomeB, dados);
-
-      const cen = new DataView(new ArrayBuffer(46));
-      cen.setUint32(0, 0x02014b50, true);
-      cen.setUint16(4, 20, true);
-      cen.setUint16(6, 20, true);
-      cen.setUint16(8, 0x0800, true);
-      cen.setUint32(16, crc, true);
-      cen.setUint32(20, dados.length, true);
-      cen.setUint32(24, dados.length, true);
-      cen.setUint16(28, nomeB.length, true);
-      cen.setUint32(42, offset, true);
-      central.push(new Uint8Array(cen.buffer), nomeB);
-      offset += 30 + nomeB.length + dados.length;
-    });
-    const tamCentral = central.reduce((s, p) => s + p.length, 0);
-    const fim = new DataView(new ArrayBuffer(22));
-    fim.setUint32(0, 0x06054b50, true);
-    fim.setUint16(8, arquivos.length, true);
-    fim.setUint16(10, arquivos.length, true);
-    fim.setUint32(12, tamCentral, true);
-    fim.setUint32(16, offset, true);
-    return new Blob([...partes, ...central, new Uint8Array(fim.buffer)],
-      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  }
-
-  function xmlEsc(t) {
-    return String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
-  }
-
-  function colLetra(i) {
-    let s = '';
-    for (i++; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s;
-    return s;
-  }
-
-  function xmlAba(aba) {
-    const cols = aba.larguras.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('');
-    // Cada célula: texto, ou { v, b: negrito, n: número }
-    const linhas = aba.rows.map((r, ri) => {
-      const celulas = r.map((c, ci) => {
-        const cel = (c !== null && typeof c === 'object') ? c : { v: c };
-        if (cel.v === '' || cel.v === undefined || cel.v === null) return '';
-        const ref = `${colLetra(ci)}${ri + 1}`;
-        const estilo = cel.b ? ' s="1"' : '';
-        if (cel.n) return `<c r="${ref}"${estilo}><v>${xmlEsc(cel.v)}</v></c>`;
-        return `<c r="${ref}" t="inlineStr"${estilo}><is><t xml:space="preserve">${xmlEsc(cel.v)}</t></is></c>`;
-      }).join('');
-      return `<row r="${ri + 1}">${celulas}</row>`;
-    }).join('');
-    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-      `<cols>${cols}</cols><sheetData>${linhas}</sheetData></worksheet>`;
-  }
-
-  function gerarXLSX(abas) {
-    const cab = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-    const arquivos = [
-      { nome: '[Content_Types].xml', conteudo: cab +
-        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
-        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-        '<Default Extension="xml" ContentType="application/xml"/>' +
-        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
-        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
-        abas.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') +
-        '</Types>' },
-      { nome: '_rels/.rels', conteudo: cab +
-        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
-        '</Relationships>' },
-      { nome: 'xl/workbook.xml', conteudo: cab +
-        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
-        abas.map((a, i) => `<sheet name="${xmlEsc(a.nome)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('') +
-        '</sheets></workbook>' },
-      { nome: 'xl/_rels/workbook.xml.rels', conteudo: cab +
-        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
-        abas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') +
-        `<Relationship Id="rId${abas.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
-        '</Relationships>' },
-      { nome: 'xl/styles.xml', conteudo: cab +
-        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-        '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
-        '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
-        '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
-        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-        '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>' +
-        '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
-        '</styleSheet>' },
-      ...abas.map((a, i) => ({ nome: `xl/worksheets/sheet${i + 1}.xml`, conteudo: xmlAba(a) }))
-    ];
-    return criarZip(arquivos);
+    return { linhas, semModalidade };
   }
 
   function baixarBlob(blob, nomeArquivo) {
@@ -1908,19 +1757,32 @@
     const mes = parseInt(document.getElementById('selMes').value);
     const ano = parseInt(document.getElementById('selAno').value);
     const nome = document.getElementById('nomeServidor').value.trim();
+    const siape = document.getElementById('siapeServidor').value.replace(/\D/g, '');
+    const orgao = document.getElementById('codUnidade').value.replace(/\D/g, '');
 
-    const abaSigepe = montarAbaSIGEPE(mes, ano);
-
-    const sufixo = nome ? '_' + nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') : '';
-    baixarBlob(gerarXLSX([abaSigepe]), `SIGEPE_Ocorrencias${sufixo}_${meses[mes]}_${ano}.xlsx`);
-
-    if (!abaSigepe.temSiape) {
-      mostrarToast('📊 Planilha exportada. ⚠️ Sem ocorrências: informe o SIAPE do servidor.', 'error');
+    if (!siape) {
+      mostrarToast('⚠️ Informe o SIAPE (matrícula) antes de exportar para o SIGEPE.', 'error');
       document.getElementById('siapeServidor').focus();
       return;
     }
-    let msg = `📊 Planilha SIGEPE exportada: ${abaSigepe.total} dia(s).`;
-    if (abaSigepe.semModalidade) msg += ` ${abaSigepe.semModalidade} dia(s) sem modalidade ficaram de fora.`;
+    if (!orgao) {
+      mostrarToast('⚠️ Informe o código da Unidade/Órgão (ex.: 26253) antes de exportar.', 'error');
+      document.getElementById('codUnidade').focus();
+      return;
+    }
+
+    const { linhas, semModalidade } = montarLinhasSIGEPE(mes, ano, orgao, siape);
+    if (linhas.length === 0) {
+      mostrarToast('⚠️ Nenhum dia Presencial/Remoto preenchido neste mês.', 'error');
+      return;
+    }
+
+    const csv = linhas.join('\r\n') + '\r\n';
+    const sufixo = nome ? '_' + nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') : '';
+    baixarBlob(new Blob([csv], { type: 'text/csv' }), `SIGEPE_Ocorrencias${sufixo}_${meses[mes]}_${ano}.csv`);
+
+    let msg = `📤 CSV do SIGEPE exportado: ${linhas.length} dia(s).`;
+    if (semModalidade) msg += ` ${semModalidade} dia(s) sem modalidade ficaram de fora.`;
     mostrarToast(msg, 'success');
   }
 
